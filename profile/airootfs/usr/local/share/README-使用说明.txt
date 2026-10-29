@@ -12,7 +12,7 @@ Arch + Denial 救援 Live —— 使用说明
   启动菜单：
     · 启动救援 Live —— 进 SDDM/桌面（root 空密码直接回车；live 用户免密 sudo）
     · Memtest86+   —— 测内存
-    · 中文输入法已默认启用（fcitx5 拼音，Ctrl 切换中英文）
+    · 中文输入法已默认启用（fcitx5 拼音，Shift 切换中英文）
 
 二、修 Windows 引导不启动（C盘进不去）
   sudo fixboot win        # UEFI 机型：从 Windows 分区把 bootmgfw.efi/BCD 复制回 ESP 并重建启动项

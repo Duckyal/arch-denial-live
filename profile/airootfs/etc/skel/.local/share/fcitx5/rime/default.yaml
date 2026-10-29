@@ -1,0 +1,22 @@
+config_version: "1.8"
+schema_list:
+  - schema: luna_pinyin_simp
+  - schema: luna_pinyin
+  - schema: terra_pinyin
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ 中文, 西文 ]
+  - name: full_shape
+    states: [ 半角, 全角 ]
+  - name: simplification
+    states: [ 汉字, 漢字 ]
+menu:
+  page_size: 9
+key_binder:
+  bindings:
+    - { accept: "Control", toggle: ascii_mode, when: always }
+    - { accept: F4, toggle: simplification, when: composing }
+    - { accept: KP_Enter, commit: Return, when: composing }
+    - { accept: Up, send: Page_Up, when: has_menu }
+    - { accept: Down, send: Page_Down, when: has_menu }

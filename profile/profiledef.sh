@@ -7,7 +7,7 @@ iso_publisher="denial rescue live <https://github.com/denialwm/denial>"
 iso_application="Arch + Denial Rescue Live"
 iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="arch"
-kernel_params_x86_64="console=tty0 console=ttyS0,115200n8"
+kernel_params_x86_64="console=tty0 console=ttyS0,115200n8 quiet"
 buildmodes=('iso')
 bootmodes=('bios.syslinux' 'uefi.systemd-boot')
 pacman_conf="pacman.conf"

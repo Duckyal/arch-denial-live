@@ -64,6 +64,9 @@ find /usr/share/i18n/locales -mindepth 1 ! -name 'zh_CN*' ! -name 'en_US*' ! -na
 find /usr/share/fonts -type d -name '*noto*' -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf /usr/share/fonts/TTF-nonexistent 2>/dev/null || true
 ldconfig
+# 根治启动刷屏：loop 挂载已由 initramfs 完成，rootfs 里 systemd 重复 attach sr0
+# 会反复报 "Attach File ... to Loopback Block Device FAILED"（即用户看到的 magic 报错）
+ln -sf /dev/null /etc/systemd/system/systemd-losetup@.service
 echo "trim done"
 
 
@@ -124,6 +127,24 @@ cat > /etc/xdg/openbox/menu.xml <<'OB'
 </menu>
 </openbox_menu>
 OB
+
+# ===== iwlwifi 固件裁剪：每个网卡型号只留最新 2 个 API 版本 =====
+# 内核 iwlwifi 驱动只加载该型号可用的最高版本固件，旧版本纯占体积(~96M→~30M)
+python3 - <<'TRIM'
+import os, re, collections
+d='/usr/lib/firmware/intel/iwlwifi'
+groups=collections.defaultdict(list)
+for f in os.listdir(d):
+    m=re.match(r'^(iwlwifi-.+?)-(\d+)\.ucode\.zst$', f)
+    if m: groups[m.group(1)].append((int(m.group(2)), f))
+removed=0
+for prefix, items in groups.items():
+    items.sort(reverse=True)
+    for api, f in items[2:]:
+        try: os.remove(os.path.join(d,f)); removed+=1
+        except OSError: pass
+print(f'iwlwifi trim: removed {removed} old firmware files')
+TRIM
 echo "sessions customized"
 chmod +x /usr/local/bin/denial-launch /usr/local/bin/fixboot /usr/local/bin/install-live /usr/local/bin/live-de 2>/dev/null || true
 

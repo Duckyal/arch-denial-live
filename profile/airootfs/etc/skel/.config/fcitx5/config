@@ -3,7 +3,8 @@ ActiveByDefault=True
 ShareState=Program
 
 [Hotkey]
-Trigger=CTRL
-Enumerate=CTRL+SHIFT+R SHIFT
-Rotate=CTRL+SHIFT+TAB TAB
-IMEHash=CTRL+1 CTRL+2 CTRL+3 CTRL+4
+# Shift 键切换中英文（国人习惯）；同时保留 Ctrl+Space
+Trigger=SHIFT
+Enumerate=CTRL+SHIFT+R
+Rotate=CTRL+SHIFT+TAB
+AltTrigger=ALT
