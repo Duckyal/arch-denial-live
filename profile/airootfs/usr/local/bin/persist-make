@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# 创建持久分区 CASPER_RW。用法：
+#   persist-make                 自动：优先当前启动盘(dd 直写盘)；否则列出磁盘让你选
+#   persist-make /dev/sdb        在指定磁盘尾部新建
+#   persist-make --fmt /dev/sdb1 直接把指定分区格式化为 CASPER_RW(Ventoy/第二只U盘用)
+set -uo pipefail
+[ "$(id -u)" = 0 ] || { echo "请用 root 运行: sudo persist-make"; exit 1; }
+
+find_bootdisk() {
+  local UUID SRC PK
+  UUID=$(sed -n 's|.*archisosearchuuid=\([^ ]*\).*|\1|p' /proc/cmdline 2>/dev/null)
+  SRC=""
+  [ -n "$UUID" ] && SRC=$(blkid -t UUID="$UUID" -o device 2>/dev/null | head -1)
+  [ -z "$SRC" ] && SRC=$(findmnt -n -o SOURCE /run/archiso/bootmnt 2>/dev/null)
+  [ -n "$SRC" ] || return 1
+  while PK=$(lsblk -n -o PKNAME "$SRC" 2>/dev/null | head -1) && [ -n "$PK" ]; do SRC=/dev/$PK; done
+  echo "$SRC"
+}
+
+# 读 MBR 分区表，返回第一个真正空闲的槽位号(1-4)。
+# hybrid ISO 的槽位 1 类型是 0x00 但有扇区数——parted 会误当空闲并覆盖它，导致引导损坏，
+# 因此这里必须自己判断：type==0 且 sectors==0 才算空。
+free_mbr_slot() {
+  local -a b
+  mapfile -t b < <(dd if="$1" bs=1 skip=446 count=64 2>/dev/null | od -An -tu1 -v | tr -s ' ' '\n' | grep -v '^$')
+  [ "${#b[@]}" -ge 64 ] || return 1
+  local i off type secs
+  for i in 0 1 2 3; do
+    off=$((i*16)); type=${b[$((off+4))]:-0}; secs=${b[$((off+12))]:-0}
+    # 组合 sectors 4 字节(小端)
+    local s=$(( b[$((off+12))] + b[$((off+13))]*256 + b[$((off+14))]*65536 + b[$((off+15))]*16777216 ))
+    if [ "$type" = 0 ] && [ "$s" = 0 ]; then echo $((i+1)); return 0; fi
+  done
+  return 1
+}
+
+if EX=$(blkid -L CASPER_RW 2>/dev/null); then
+  echo "持久分区已存在: $EX"; lsblk "$EX" -o NAME,SIZE,FSTYPE,LABEL; exit 0
+fi
+
+if [ "${1:-}" = "--fmt" ]; then
+  T=${2:-}; [ -b "$T" ] || { echo "分区不存在: $T"; exit 1; }
+  printf "⚠️ 将格式化 %s 为 CASPER_RW(数据清空)。输入 yes 确认: " "$T"; read a; [ "$a" = yes ] || exit 0
+  mkfs.ext4 -qF -L CASPER_RW "$T" && { echo "✅ $T 已就绪(ext4)"; exit 0; } || exit 1
+fi
+
+DISK=${1:-}
+if [ -z "$DISK" ]; then
+  DISK=$(find_bootdisk 2>/dev/null || true)
+  if [ -n "$DISK" ] && [ -b "$DISK" ]; then
+    echo "检测到启动盘: $DISK"
+  else
+    echo "未识别启动盘(Ventoy 共享盘属正常)。其它磁盘:"
+    lsblk -d -o NAME,SIZE,MODEL,TRAN | grep -vE 'loop|sr'
+    read -rp "输入目标磁盘(如 /dev/sdb，回车取消): " DISK
+    [ -n "$DISK" ] || exit 1
+  fi
+fi
+[ -b "$DISK" ] || { echo "$DISK 不是块设备"; exit 1; }
+
+TABLE=$(parted -s $DISK print 2>/dev/null | grep -oE 'Partition Table: (gpt|msdos)' | awk '{print $3}')
+[ -n "$TABLE" ] || { echo "❌ $DISK 无分区表"; exit 1; }
+LAST=$(parted -s -m $DISK unit B print 2>/dev/null | awk -F: '/^[0-9]+:/{if($3+0>m)m=$3+0} END{print m"B"}')
+DISKSIZE=$(lsblk -b -d -n -o SIZE $DISK)
+LASTEND=${LAST%B}
+START=$(( (LASTEND / 1048576 + 1) * 1048576 ))   # 向上 1MiB 对齐
+AVAIL=$((DISKSIZE - START - 2097152))
+echo "分区末尾 ${LASTEND}B → 新分区起点 ${START}B，可用 $((AVAIL/1048576))MiB"
+[ "$AVAIL" -ge 524288000 ] || { echo "❌ 剩余不足 500MiB。可另插U盘: sudo persist-make --fmt /dev/它的分区"; exit 1; }
+printf "⚠️ 在 %s 尾部新建 %sMiB 分区(CASPER_RW, ext4)，不动已有分区。输入 yes 继续: " "$DISK" "$((AVAIL/1048576))"
+read a; [ "$a" = yes ] || exit 0
+
+if [ "$TABLE" = gpt ]; then
+  parted -s $DISK mkpart persistent fat32 ${START}B 100% || exit 1
+  NP=$(parted -s -m $DISK print 2>/dev/null | awk -F: -v st="${START}B" '$2==st{print $1; exit}')
+else
+  NP=$(free_mbr_slot "$DISK") || { echo "❌ MBR 4 个槽位已满(msdos 表限制)。请用 GPT 盘或 --fmt 指定分区"; exit 1; }
+  echo "使用空闲槽位: $NP (保留 hybrid ISO 槽位不动)"
+  START_SECT=$((START/512)); SIZE_SECT=$(( (DISKSIZE - 1048576 - START)/512 ))
+  echo "${START_SECT},${SIZE_SECT},c" | sfdisk $DISK -N $NP --no-reread --quiet || exit 1
+fi
+[ -n "${NP:-}" ] || { echo "❌ 无法确定新分区号，不做格式化"; exit 1; }
+case $(basename $DISK) in nvme*|mmcblk*|loop*) PN="${DISK}p${NP}";; *) PN="${DISK}${NP}";; esac
+for i in $(seq 1 12); do [ -b "$PN" ] && break; partprobe $DISK 2>/dev/null; blockdev --rereadpt $DISK 2>/dev/null; udevadm settle --timeout=2; sleep 1; done
+[ -b "$PN" ] || { echo "❌ 内核未生成 $PN，请重插U盘后再跑 persist-make --fmt <该分区>"; exit 1; }
+# cow 持久化需要 overlayfs upperdir，FAT32 不支持 → 必须 ext4
+mkfs.ext4 -qF -L CASPER_RW "$PN" || exit 1
+udevadm settle --timeout=5
+echo "✅ 完成: $PN (CASPER_RW)。重启后选『持久模式』即可保存改动。"

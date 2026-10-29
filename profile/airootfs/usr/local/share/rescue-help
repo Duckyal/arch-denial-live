@@ -12,4 +12,5 @@
                     gemini-cli 需在线安装: sudo pacman -S gemini-cli
   中文输入法        已默认 fcitx5+拼音, Shift 切换
   磁盘工具          gparted / testdisk / ddrescue / fsarchiver / chntpw
+  数据持久化        sudo persist-make 后，开机选『持久模式』改动不丢
 ════════════════════════════════════════════════════════

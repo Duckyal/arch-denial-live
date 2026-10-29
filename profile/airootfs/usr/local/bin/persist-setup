@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# 持久化挂载助手（由 archpersist= 内核参数触发）
+# 两种模式自动区分：
+#   A. 系统+数据全持久（cow_label= 由 initramfs 处理，本脚本只补 skel 同步）
+#   B. 仅数据持久（无 cow_label 时，bind /persist 的 home/root）
+set -uo pipefail
+grep -qw 'archpersist' /proc/cmdline 2>/dev/null || exit 0
+
+COW=$(grep -oE 'cow_label=[^ ]+' /proc/cmdline | cut -d= -f2)
+PART=$(blkid -L CASPER_RW 2>/dev/null || blkid -L casper_rw 2>/dev/null)
+[ -n "${PART:-}" ] && [ -b "$PART" ] || { echo "persist: 无 CASPER_RW 分区，跳过"; exit 0; }
+
+mkdir -p /persist
+mountpoint -q /persist || mount -o rw "$PART" /persist || exit 0
+echo "persist: $PART -> /persist"
+
+if [ -n "${COW:-}" ]; then
+  # 模式 A：整个根已是 overlay，家目录已在持久层内，仅确保目录存在
+  mkdir -p /persist/home-sync
+  echo "persist: 系统级持久(cow=${COW})，家目录已随 overlay 保存"
+else
+  # 模式 B：仅数据持久（系统改动重启即丢，家目录/数据保留）
+  mkdir -p /persist/home-live /persist/root
+  mountpoint -q /home/live || mount --bind /persist/home-live /home/live
+  mountpoint -q /root      || mount --bind /persist/root /root
+  # 首次使用：把 skel 铺进持久家目录
+  if [ -z "$(ls -A /home/live 2>/dev/null)" ]; then
+    cp -a /etc/skel/. /home/live/ && chown -R 1000:1000 /home/live
+  fi
+  echo "persist: 数据级持久(bind home/root)"
+fi
+# 桌面救援图标补齐（旧持久盘升级后也能看到）
+[ -d /etc/skel/Desktop ] && cp -rf /etc/skel/Desktop /home/live/ 2>/dev/null || true
+chown -R 1000:1000 /home/live 2>/dev/null || true
+systemctl restart sddm 2>/dev/null || true
+echo "persist: 完成"

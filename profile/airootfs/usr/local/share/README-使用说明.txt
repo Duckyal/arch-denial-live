@@ -67,6 +67,24 @@ Arch + Denial 救援 Live —— 使用说明
   live 用户家目录有桌面图标（安装/修复快捷方式）。
   镜像源在 /etc/pacman.d/mirrorlist（南大/中科大/浙大/山大优先）。
 
+
+十一、U 盘数据持久化（重启不丢改动）
+  第一次用（任意模式启动进桌面后）：
+    sudo persist-make        # 在 U 盘尾部自动建 CASPER_RW 分区(ext4)
+  以后开机在菜单选：
+    · 持久模式（改动保存到 U 盘 CASPER_RW 分区）
+      → 系统+软件+家目录全部保存（dm-snapshot cow 文件，默认 2G 上限，FAT32 单文件最大 4G，
+        可在启动项里改 cow_spacesize=8G）
+    · 默认普通模式 = 每次全新（适合借别人电脑临时用）
+  说明：
+    - 没建分区就选"持久模式"不会坏，自动降级为普通模式
+    - Ventoy 同样支持：把 ISO 拖进 Ventoy 盘 → 启动选"持久模式" →
+      第一次进系统先跑 persist-make（它会把分区建在 Ventoy 的 exFAT 盘尾部，
+      若空间不足，也可另插一个 U 盘，手动把它格式化成标签 CASPER_RW 再启动）
+    - 想换回干净系统：删掉 CASPER_RW 分区里的 persistent_* 目录即可
+    - CASPER_RW 是 ext4（cow 持久化机制要求，Windows 不能直接读）；
+    要给 Windows 拷数据：另插一只 exFAT U 盘，或用 Ventoy 盘自带的 exFAT 分区
+
 九、远程救援（另一台电脑 SSH 进来操作）
   live 里 root 空密码只能本机串口/TTY 用；要 SSH 先设密码：
     sudo passwd root        # 输两次密码

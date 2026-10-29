@@ -67,6 +67,17 @@ ldconfig
 # 根治启动刷屏：loop 挂载已由 initramfs 完成，rootfs 里 systemd 重复 attach sr0
 # 会反复报 "Attach File ... to Loopback Block Device FAILED"（即用户看到的 magic 报错）
 ln -sf /dev/null /etc/systemd/system/systemd-losetup@.service
+
+# ===== 持久化支持：给 archiso initramfs hook 打"优雅降级"补丁 =====
+# cow_label 指向的分区不存在时，原逻辑会卡在 initramfs 救援壳；
+# 补丁后自动跳过 cow 设备、降级为普通易失模式，正常进桌面。
+if ! grep -q "PERSIST-FALLBACK" /usr/lib/initcpio/hooks/archiso; then
+  sed -i 's|^    if \[ -n "${cow_device}" \]; then|    if [ -n "${cow_device}" ] \&\& [ -e "${cow_device}" ]; then # PERSIST-FALLBACK|' /usr/lib/initcpio/hooks/archiso
+  grep -q PERSIST-FALLBACK /usr/lib/initcpio/hooks/archiso || echo "WARN: archiso hook 补丁未命中(上游可能改了文本)"
+  # 重建 initramfs 使补丁生效
+  mkinitcpio -p linux >/dev/null 2>&1 || mkinitcpio -p linux
+  echo "archiso hook patched + initramfs rebuilt"
+fi
 echo "trim done"
 
 

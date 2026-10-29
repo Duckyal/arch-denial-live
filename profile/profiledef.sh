@@ -25,4 +25,6 @@ file_permissions=(
   ["/usr/local/bin/fixboot"]="0:0:755"
   ["/usr/local/bin/install-live"]="0:0:755"
   ["/usr/local/bin/denial-launch"]="0:0:755"
+  ["/usr/local/bin/persist-setup"]="0:0:755"
+  ["/usr/local/bin/persist-make"]="0:0:755"
 )

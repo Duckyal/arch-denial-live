@@ -1,0 +1,12 @@
+[Unit]
+Description=救援盘持久化分区挂载
+After=local-fs.target
+ConditionKernelCommandLine=archpersist
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/persist-setup
+RemainAfterExit=yes
+
+[Service]
+TimeoutStartSec=30
