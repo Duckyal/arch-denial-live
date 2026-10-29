@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=U盘持久化设置 (persist-make)
+Name[en]=Setup USB persistence
+Comment=在U盘尾部创建 CASPER_RW 分区，之后开机选"持久模式"改动不丢
+Exec=/usr/bin/foot -e sudo persist-make
+Terminal=true
+Icon=drive-removable-media
+Categories=System;Filesystem;

@@ -70,7 +70,8 @@ Arch + Denial 救援 Live —— 使用说明
 
 十一、U 盘数据持久化（重启不丢改动）
   第一次用（任意模式启动进桌面后）：
-    sudo persist-make        # 在 U 盘尾部自动建 CASPER_RW 分区(ext4)
+    桌面图标『U盘持久化设置』或终端执行: sudo persist-make
+    （自动在 U 盘尾部建 CASPER_RW 分区, ext4）
   以后开机在菜单选：
     · 持久模式（改动保存到 U 盘 CASPER_RW 分区）
       → 系统+软件+家目录全部保存（dm-snapshot cow 文件，默认 2G 上限，FAT32 单文件最大 4G，

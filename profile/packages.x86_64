@@ -122,7 +122,6 @@ qt6-svg
 # ---- 终端与中文 ----
 foot
 foot-terminfo
-alacritty
 xterm
 adobe-source-han-sans-cn-fonts
 wqy-microhei
