@@ -74,6 +74,59 @@ done
 desktop-file-utils-update() { command -v update-desktop-database >/dev/null && update-desktop-database -q /usr/share/applications; }
 desktop-file-utils-update || true
 
+
+# ===== 会话定制（必须在装包后做，否则被包文件覆盖）=====
+# 1) denial.desktop 指向带日志/软渲染重试的包装器
+sed -i 's|^Exec=.*|Exec=/usr/local/bin/denial-launch|' /usr/share/wayland-sessions/denial.desktop
+# 2) 软件渲染版 denial 会话（SDDM 菜单可选，治 NVIDIA/异常 GPU）
+cat > /usr/share/wayland-sessions/denial-soft.desktop <<'DESK'
+[Desktop Entry]
+Name=Denial 桌面（软件渲染）
+Comment=LLVMpipe 软渲染，兼容异常 GPU
+Exec=env LIBGL_ALWAYS_SOFTWARE=1 /usr/local/bin/denial-launch
+TryExec=/usr/bin/denial-session
+Type=Application
+DesktopNames=Denial
+DESK
+# 3) Openbox X11 兜底会话（万能，任何 GPU 都能进）
+mkdir -p /usr/share/xsessions
+cat > /usr/share/xsessions/openbox.desktop <<'DESK'
+[Desktop Entry]
+Name=Openbox 兼容桌面
+Comment=X11 兜底会话（denial 启动失败时用）
+Exec=openbox-session
+TryExec=openbox-session
+Type=Application
+DesktopNames=Openbox
+DESK
+mkdir -p /etc/xdg/openbox
+cat > /etc/xdg/openbox/environment <<'OB'
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+OB
+cat > /etc/xdg/openbox/autostart <<'OB'
+#!/bin/sh
+(xterm -fa 'Source Han Sans CN' -fs 11 -geometry 100x30+80+80 &)
+OB
+chmod +x /etc/xdg/openbox/autostart
+cat > /etc/xdg/openbox/menu.xml <<'OB'
+<?xml version="1.0" encoding="UTF-8"?>
+<openbox_menu xmlns="http://openbox.org/">
+<menu id="root-menu" label="救援">
+  <item label="终端 (xterm)"><action name="Execute"><execute>xterm -fa 'Source Han Sans CN' -fs 11</execute></action></item>
+  <item label="修 Windows 引导"><action name="Execute"><execute>xterm -e sudo fixboot win</execute></action></item>
+  <item label="修 Linux 引导"><action name="Execute"><execute>xterm -e sudo fixboot linux</execute></action></item>
+  <item label="离线安装系统"><action name="Execute"><execute>xterm -e sudo install-live</execute></action></item>
+  <item label="AI 救援 (opencode)"><action name="Execute"><execute>xterm -e sudo -i opencode</execute></action></item>
+  <separator/>
+  <item label="退出登录"><action name="Exit"/></item>
+</menu>
+</openbox_menu>
+OB
+echo "sessions customized"
+chmod +x /usr/local/bin/denial-launch /usr/local/bin/fixboot /usr/local/bin/install-live /usr/local/bin/live-de 2>/dev/null || true
+
 echo "customize done"
 # 壁纸与 denial 状态（skel -> /home/live）
 mkdir -p /home/live/.local/state/denial

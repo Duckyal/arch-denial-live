@@ -24,4 +24,5 @@ file_permissions=(
   ["/usr/local/bin/live-de"]="0:0:755"
   ["/usr/local/bin/fixboot"]="0:0:755"
   ["/usr/local/bin/install-live"]="0:0:755"
+  ["/usr/local/bin/denial-launch"]="0:0:755"
 )

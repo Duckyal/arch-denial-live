@@ -1,7 +1,7 @@
 ════════════════════════════════════════════════════════
   Arch + Denial 救援 Live（中文 / 支持离线安装）
 ════════════════════════════════════════════════════════
-  桌面          startx 或已自动进入 SDDM(选择 Denial)
+  桌面          自动进入 Denial；登录界面左下可切『软件渲染Denial』或『Openbox 兼容桌面』
                 密码留空：root 直接回车；live 用户免密
   修 Windows 引导   sudo fixboot win        [或 win-mbr 磁盘]
   修 Linux 引导     sudo fixboot linux      [或 linux /dev/sdXN]

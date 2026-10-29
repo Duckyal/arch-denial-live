@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# denial 会话包装器：记录崩溃日志；硬件渲染快速失败时自动用软件渲染重试一次
+# 注意：绝不能用 "| tee" 转发 denial-session 输出——deniald 的渲染子进程继承
+# stdout，管道读端(tee)先退会让整个会话收到 SIGPIPE(141) 而崩溃。
+LOGDIR="$HOME/.local/state/denial"; mkdir -p "$LOGDIR"; LOG="$LOGDIR/launch.log"
+{
+  echo "===== $(date -Is) denial-launch ====="
+  lspci -nn 2>/dev/null | grep -iE 'vga|3d controller|display' | sed 's/^/  GPU: /'
+  for c in /sys/class/drm/card[0-9]; do
+    [ -e "$c" ] || continue
+    echo "  ${c##*/}: driver=$(basename "$(readlink -f "$c/device/driver" 2>/dev/null)" 2>/dev/null) boot_vga=$(cat "$c/device/boot_vga" 2>/dev/null)"
+  done
+} >>"$LOG" 2>&1
+# NVIDIA 专有驱动缺失/独显直连时直接软渲染，避免必崩的第一次尝试
+if lspci -nn 2>/dev/null | grep -qi 'vga.*\[10de:' && ! lsmod 2>/dev/null | grep -qE '^nvidia'; then
+  echo "===== nvidia without proprietary driver -> software rendering =====" >>"$LOG"
+  export LIBGL_ALWAYS_SOFTWARE=1
+fi
+attempt(){ /usr/bin/denial-session "$@" >>"$LOG" 2>&1; }
+t0=$SECONDS; attempt "$@"; rc=$?; dur=$((SECONDS-t0))
+echo "===== attempt1 rc=$rc dur=${dur}s =====" >>"$LOG"
+if [ "$dur" -lt 12 ] && [ "$rc" -ne 0 ] && [ -z "${LIBGL_ALWAYS_SOFTWARE:-}" ]; then
+  echo "===== retry: LIBGL_ALWAYS_SOFTWARE=1 =====" >>"$LOG"
+  export LIBGL_ALWAYS_SOFTWARE=1
+  t0=$SECONDS; attempt "$@"; rc=$?; dur=$((SECONDS-t0))
+  echo "===== attempt2(software) rc=$rc dur=${dur}s =====" >>"$LOG"
+fi
+if [ "$rc" -ne 0 ] && [ "$dur" -lt 12 ]; then
+  { echo "Denial 启动失败 (rc=$rc)。日志: $LOG"
+    echo "建议：登录界面左下『会话』选『Openbox 兼容桌面』或『Denial（软件渲染）』，"
+    echo "     或 tty2 (Ctrl+Alt+F2, root 免密) 运行 opencode 分析本文件。"
+    tail -60 "$LOG"; } > "$HOME/denial-crash.txt" 2>/dev/null
+fi
+exit "$rc"

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Denial 桌面（软件渲染）
+Name[zh_CN]=Denial 桌面（软件渲染）
+Comment=LLVMpipe 软渲染，兼容 NVIDIA/异常 GPU
+Exec=env LIBGL_ALWAYS_SOFTWARE=1 /usr/local/bin/denial-launch
+TryExec=/usr/bin/denial-session
+Type=Application
+DesktopNames=Denial
+Keywords=wayland;compositor;flutter;software;

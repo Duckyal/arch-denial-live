@@ -1,6 +1,11 @@
 Arch + Denial 救援 Live —— 使用说明
 ════════════════════════════════════
 
+  桌面进不去？ 登录界面左下角『会话』可切换：
+    Denial 桌面（软件渲染）  → GPU 异常/独显直连黑屏时用
+    Openbox 兼容桌面         → 万能 X11 兜底，右键出救援菜单
+  denial 崩溃日志: ~/.local/state/denial/launch.log
+
 一、写盘启动
   方法1 直接 dd:  sudo dd if=xxx.iso of=/dev/sdX bs=4M status=progress oflag=sync
   方法2 Ventoy:   装 Ventoy 后把 ISO 拖进 exFAT 分区即可（支持 legacy+UEFI）
