@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = pacman
+
+[Action]
+Description = 移除 archiso 专用 pacman 钩子…
+When = PostTransaction
+Depends = coreutils
+Exec = /usr/bin/rm -f /etc/pacman.d/hooks/zzzz99-remove-iso-hooks.hook

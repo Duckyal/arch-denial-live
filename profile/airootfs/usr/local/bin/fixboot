@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# fixboot —— 引导修复工具
+#   fixboot win            修复 Windows UEFI 引导（重建 ESP 上的 bootmgfw.efi + 启动项）
+#   fixboot win [磁盘]      同上，指定磁盘如 /dev/sda
+#   fixboot win-mbr [磁盘]  修复 Windows Legacy MBR 引导代码
+#   fixboot linux [设备]    挂载已装系统，重装内核+initramfs+grub/systemd-boot
+#   fixboot ls              列出磁盘分区
+set -uo pipefail
+green(){ echo -e "\e[32m✓ $*\e[0m"; }
+yel(){ echo -e "\e[33m! $*\e[0m"; }
+red(){ echo -e "\e[31m✗ $*\e[0m" >&2; }
+pause(){ [ "${ASK:-1}" = 1 ] && read -rp "按回车继续… " _; }
+[ "$(id -u)" = 0 ] || { red "需要 root：live 用户请 sudo -i 再运行"; exit 1; }
+
+listparts(){ lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINTS /dev/"${1#*/}" 2>/dev/null || lsblk -f; }
+
+mount_esp(){ # $1=disk or auto  -> prints mountpoint /dev/esp
+  local d ESP
+  if [ -n "${1:-}" ]; then d=${1%/}; d=${d##*/}; d=/dev/$d; fi
+  ESP=$(lsblk -n -p -o NAME,FSTYPE,SIZE ${d:-} 2>/dev/null | awk '$2=="vfat"&&$3<2147483648{print $1;exit}')
+  [ -z "$ESP" ] && ESP=$(blkid -t TYPE=vfat -o device 2>/dev/null | grep -E '^/dev/(sd|nvme|vd)[a-z]' | while read x; do s=$(blockdev --getsize64 "$x"); [ "$s" -lt 2147483648 ] && { echo "$x"; break; }; done)
+  [ -n "$ESP" ] || { red "找不到 EFI 系统分区"; return 1; }
+  green "ESP: $ESP"
+  mkdir -p /mnt/esp && mount $ESP /mnt/esp || { red "挂载 ESP 失败"; return 1; }
+  [ -d /mnt/esp/EFI ] || yel "ESP 上没有 EFI 目录（可能格式化了）"
+}
+umount_all(){ umount -l /mnt/esp /mnt/win 2>/dev/null; umount -R /mnt/sys 2>/dev/null; }
+
+find_win(){ # prints biggest ntfs partition
+  lsblk -n -p -o NAME,FSTYPE,SIZE $(lsblk -n -p -o NAME | grep -E '^/dev/(sd|nvme|vd)[a-z]' >/dev/null; echo /dev/*d[ab]* 2>/dev/null) 2>/dev/null | awk '$2=="ntfs"{print $1,$3}' | sort -k2 -nr | awk 'NR==1{print $1}'
+}
+
+cmd=${1:-help}
+case "$cmd" in
+ ls) lsblk -f; exit 0;;
+
+ win|win-uefi)
+  green "修复 Windows UEFI 引导"
+  mount_esp ${2:-} || exit 1
+  W=$(find_win); [ -n "$W" ] || { red "找不到 NTFS(Windows) 分区"; umount_all; exit 1; }
+  green "Windows 分区: $W"
+  mkdir -p /mnt/win && (mount -o ro "$W" /mnt/win || mount "$W" /mnt/win) || { red "挂载 Windows 分区失败"; umount_all; exit 1; }
+  if [ ! -d /mnt/win/Windows ]; then red "$W 看起来没有 Windows 目录"; umount_all; exit 1; fi
+  BK=/mnt/esp/esp-backup-$(date +%F-%H%M).tar.gz
+  yel "备份 ESP → $BK（失败不致命，继续）"
+  tar -C /mnt/esp -czf $BK EFI 2>/dev/null && green "已备份 $BK" || true
+  mkdir -p /mnt/esp/EFI/Microsoft/Boot /mnt/esp/EFI/Boot /mnt/esp/EFI/Microsoft/Recovery
+  cp -a /mnt/win/Windows/Boot/EFI/Boot/bootmgfw.efi /mnt/esp/EFI/Microsoft/Boot/ 2>/dev/null || true
+  cp -a /mnt/win/Windows/Boot/EFI/Boot/bootmgr.efi /mnt/esp/EFI/Microsoft/Boot/ 2>/dev/null || true
+  cp -a /mnt/win/Windows/Boot/EFI/Boot/bootx64.efi /mnt/esp/EFI/Boot/ 2>/dev/null || true
+  cp -a /mnt/win/Windows/Boot/EFI/Boot/memtest.efi /mnt/esp/EFI/Microsoft/Boot/ 2>/dev/null || true
+  cp -a /mnt/win/Windows/Boot/PCReserve/zh-CN/* /mnt/esp/EFI/Microsoft/Boot/BCD 2>/dev/null
+  cp -a /mnt/win/Windows/Boot/PCReserve/*/  /mnt/esp/EFI/Microsoft/Boot/ 2>/dev/null
+  cp -a /mnt/win/Windows/Boot/PCReserve/*/BCD /mnt/esp/EFI/Microsoft/Boot/ 2>/dev/null || true
+  cp -a /mnt/win/Boot/BCD /mnt/esp/EFI/Microsoft/Boot/ 2>/dev/null || true
+  # 关键：BCD 必须在 esp/EFI/Microsoft/Boot/BCD
+  [ -f /mnt/esp/EFI/Microsoft/Boot/BCD ] || { yel "没在 Windows 分区找到 BCD，重建一个空的（可能仍需 bootrec）"; mkdir -p /mnt/esp/EFI/Microsoft/Boot; }
+  green "已复制 Windows 引导文件到 ESP"
+  if efibootmgr -v >/dev/null 2>&1; then
+    DISK=$(lsblk -n -o PKNAME $(findmnt -n -o SOURCE /mnt/esp))
+    PART=$(lsblk -n -o PARTN $(findmnt -n -o SOURCE /mnt/esp))
+    efibootmgr --create --disk /dev/$DISK --part $PART --label "Windows Boot Manager" --loader '\EFI\Microsoft\Boot\bootmgfw.efi' >/dev/null 2>&1 && green "已添加 UEFI 启动项: Windows Boot Manager" || yel "添加启动项失败"
+    efibootmgr -v | head -20
+  else
+    yel "非 UEFI 环境（Legacy BIOS），改用: sudo fixboot win-mbr"
+  fi
+  yel "如仍进不去 Windows：多是 BCD 损坏。最稳办法是用 Windows 安装盘: bootrec /fixmbr /fixboot /scan /rebuildbcd"
+  pause; umount /mnt/win 2>/dev/null; umount /mnt/esp 2>/dev/null; green "完成"
+ ;;
+
+ win-mbr)
+  green "修复 Windows Legacy(MBR) 引导代码"
+  D=${2:-}; [ -n "$D" ] || { read -rp "目标整盘(如 /dev/sda): " D; }
+  [ -b "$D" ] || { red "$D 不是块设备"; exit 1; }
+  yel "确认向 $D 写入 MBR 引导代码(不动分区表)？"
+  read -rp "输入 yes 继续: " a; [ "$a" = yes ] || { echo 取消; exit 0; }
+  MBR=/usr/lib/syslinux/bios/mbr.bin
+  [ -f $MBR ] || MBR=/usr/boot/mbr.bin
+  [ -f $MBR ] || { red "找不到 mbr.bin（syslinux）"; exit 1; }
+  dd if=$MBR of=$D bs=440 count=1 conv=notrunc status=progress && green "MBR 已写入"
+  # 找活动分区
+  ACT=$(parted -s $D print free 2>/dev/null | awk '/boot|^ *1/{n=$1} END{}' >/dev/null; parted -s -m $D print 2>/dev/null | awk -F: '$0 ~ /^[0-9]+:/ {print}' | head -1 | cut -d: -f1)
+  W=$(lsblk -n -p -o NAME,FSTYPE,SIZE $D* | awk '$2=="ntfs"{print $1,$3}' | sort -k2 -nr | awk 'NR==1{print $1}')
+  [ -n "$W" ] || { red "该盘无 NTFS 分区"; exit 1; }
+  WP=$(lsblk -n -o PARTN $W); green "激活 NTFS 分区 $WP ($W)"
+  parted -s $D set $WP boot on && green "已设为活动" || yel "设置活动失败"
+  # 复制 Windows 自带的启动扇区代码
+  mkdir -p /mnt/win && mount -o ro $W /mnt/win 2>/dev/null || mount $W /mnt/win || { red "无法挂载 $W"; umount_all; exit 1; }
+  BS=$(find /mnt/win -maxdepth 1 -iname 'bootsect' 2>/dev/null | head -1)
+  if [ -n "$BS" ]; then
+    yel "找到 bootsect：手动执行: dd if=$BS of=$W bs=512 count=1 conv=notrunc"
+  fi
+  umount /mnt/win 2>/dev/null; yel "如果还进不去 Windows，多半是分区内引导/BCD 问题，需 Windows 安装盘 bootrec /rebuildbcd"
+  green "完成"
+ ;;
+
+ linux)
+  green "修复已安装 Linux 启动（重装内核+initramfs+引导）"
+  # 自动寻找根分区：有 /etc/os-release 且不是 live
+  ROOT=${2:-}
+  if [ -z "$ROOT" ]; then
+    yel "自动扫描疑似 Arch/EndeavourOS 根分区（按 /etc/os-release + /usr/lib/modules 判断）"
+    for d in $(lsblk -n -p -o NAME,FSTYPE | awk '$2 ~ /ext4|btrfs|xfs|f2fs/{print $1}'); do
+      [ -b "$d" ] || continue
+      mkdir -p /mnt/probe && mount -o ro "$d" /mnt/probe 2>/dev/null || continue
+      if [ -f /mnt/probe/etc/os-release ] && grep -qiE 'arch|endeavour|manjaro|arch' /mnt/probe/etc/os-release 2>/dev/null && [ -d /mnt/probe/usr/lib/modules ] && [ ! -f /mnt/probe/usr/lib/os-release-iso ]; then
+        UM=$(mount -o remount,rw /mnt/probe 2>/dev/null && echo rw || echo ro)
+        echo "  候选: $d  $(grep PRETTY /mnt/probe/etc/os-release | head -1)"
+        echo -n "  使用它修复吗？[Y/n] "; read ans; umount -l /mnt/probe
+        if [ "${ans:-Y}" != n ] && [ "${ans:-Y}" != N ]; then ROOT=$d; break; fi
+      else umount -l /mnt/probe; fi
+    done
+  fi
+  [ -n "$ROOT" ] || { red "没有指定/找到根分区。用法: fixboot linux /dev/sda2"; exit 1; }
+  M=/mnt/sys; mkdir -p $M
+  mount -o rw "$ROOT" $M || { yel "只读挂载后重试 rw"; mount $M 2>/dev/null; mount -o remount,rw "$ROOT" $M || mount "$ROOT" $M || { red "挂载失败"; exit 1; } ; }
+  green "根已挂载: $ROOT → $M"
+  # 挂载分区表里的其它分区
+  DISK=$(lsblk -n -o PKNAME $ROOT); PN=$(lsblk -n -o MAJ:MIN $ROOT)
+  while read p fs m; do
+    case "$m" in
+      ""|/|/mnt/sys) continue;;
+      /boot/efi|/esp|/boot) mkdir -p "$M$m"; mount -o rw "$p" "$M$m" 2>/dev/null || mount "$p" "$M$m" 2>/dev/null && green "挂载 $p → $m";;
+    esac
+  done < <(lsblk -n -p -o NAME,FSTYPE,MOUNTPOINT /dev/$DISK 2>/dev/null | grep -vE '^ *$')
+  # /boot 单独
+  if [ ! -d $M/boot ]; then mkdir -p $M/boot; fi
+  [ -f $M/etc/fstab ] || { yel "无 /etc/fstab（引导可能靠 root= 参数）"; }
+  # bind
+  arch-chroot $M true 2>/dev/null || {
+    for d in dev dev/pts proc sys run; do mkdir -p $M/$d; done
+    mount --bind /dev $M/dev; mount --bind /dev/pts $M/dev/pts
+    mount -t proc proc $M/proc; mount -t sysfs sysfs $M/sys; mount --rbind /run $M/run 2>/dev/null
+  }
+  yel "即将在 chroot 中执行：pacman -Sy linux mkinitcpio && mkinitcpio -p linux"
+  [ "${YES:-0}" = 1 ] || { read -rp "继续? [y/N] " c; [ "$c" = y ] || [ "$c" = Y ] || { umount -R $M; exit 0; }; }
+  arch-chroot $M pacman -Sy --noconfirm linux linux-firmware mkinitcpio openssl
+  arch-chroot $M mkinitcpio -P
+  if [ -d $M/boot/grub ]; then
+    green "重装 GRUB"
+    if [ -d $M/boot/efi ] || [ -d $M/esp ] ; then
+      arch-chroot $M grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB --recheck || \
+      arch-chroot $M grub-install --target=x86_64-efi --efi-directory=/esp --bootloader-id=GRUB --recheck || yel "grub efi 安装失败"
+    fi
+    arch-chroot $M grub-install --target=i386-pc /dev/$DISK 2>/dev/null && green "grub mbr 已装"
+    arch-chroot $M grub-mkconfig -o /boot/grub/grub.cfg && green "grub.cfg 已更新"
+  elif [ -d $M/boot/loader ] || arch-chroot $M test -d /usr/lib/systemd/bootctl 2>/dev/null; then
+    green "重装 systemd-boot"
+    arch-chroot $M bootctl install --no-variables 2>/dev/null || arch-chroot $M bootctl install 2>/dev/null || yel "bootctl 失败"
+    arch-chroot $M bootctl update 2>/dev/null || true
+    arch-chroot $M kernel-install add $(ls $M/usr/lib/modules | tail -1) /boot/vmlinuz-linux 2>/dev/null || true
+  elif [ -e $M/etc/lilo.conf ]; then
+    arch-chroot $M lilo && green "lilo 已更新"
+  else
+    yel "既没有 grub 也没有 systemd-boot/lilo；可手动指定引导或用 live-de 装引导"
+  fi
+  yel "清理伪挂载: umount -R $M   （或 sudo fixboot umount）"
+  green "完成，现在应能引导 $ROOT"
+ ;;
+
+ umount) umount_all; green "已尝试卸载 /mnt/*" ;;
+
+ help|*) cat <<H
+fixboot —— 引导修复
+  sudo fixboot ls             查看磁盘
+  sudo fixboot win [磁盘]     修复 Windows UEFI 启动（复制 bootmgfw + 建启动项）
+  sudo fixboot win-mbr 磁盘   修复 Legacy MBR（syslinux mbr.bin + 激活 NTFS 分区）
+  sudo fixboot linux [分区]   修复 Linux 引导：挂载→重装 linux 包→mkinitcpio→grub/bootctl
+  sudo fixboot umount         卸载全部临时挂载
+提示：Windows 的 BCD 严重损坏时，用官方安装U盘 bootrec /rebuildbcd 最可靠。
+H
+ ;;
+esac

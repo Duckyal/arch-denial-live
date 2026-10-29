@@ -1,0 +1,15 @@
+[Groups/0]
+Name=默认
+Layout=不跟随布局
+DefaultIM=keyboard-us
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Config=
+
+[Groups/0/Items/1]
+Name=rime
+Config=
+
+[GroupOrder]
+0=默认

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=安装其他桌面(在线)
+Exec=/usr/bin/foot -e bash -ic 'live-de'
+Terminal=true
+Icon=preferences-desktop

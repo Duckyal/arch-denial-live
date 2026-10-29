@@ -1,0 +1,15 @@
+════════════════════════════════════════════════════════
+  Arch + Denial 救援 Live（中文 / 支持离线安装）
+════════════════════════════════════════════════════════
+  桌面          startx 或已自动进入 SDDM(选择 Denial)
+                密码留空：root 直接回车；live 用户免密
+  修 Windows 引导   sudo fixboot win        [或 win-mbr 磁盘]
+  修 Linux 引导     sudo fixboot linux      [或 linux /dev/sdXN]
+  整盘装(离线)      sudo install-live /dev/sdX   (把 live 系统装进硬盘)
+  装别的桌面        live-de gnome|kde|xfce|hyprland|... (在线)
+  标准安装          archinstall  (引导式安装器)
+  AI 救系统         opencode     (免费额度: /auth 里选 OpenCode Zen)
+                    gemini-cli 需在线安装: sudo pacman -S gemini-cli
+  中文输入法        已默认 fcitx5+拼音, Ctrl 切换
+  磁盘工具          gparted / testdisk / ddrescue / fsarchiver / chntpw
+════════════════════════════════════════════════════════

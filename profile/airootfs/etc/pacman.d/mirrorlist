@@ -1,0 +1,5 @@
+Server = https://mirrors.nju.edu.cn/archlinux/$repo/os/$arch
+Server = https://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch
+Server = https://mirrors.zju.edu.cn/archlinux/$repo/os/$arch
+Server = https://mirrors.sdu.edu.cn/archlinux/$repo/os/$arch
+Server = https://geo.mirror.archlinux.org/$repo/os/$arch

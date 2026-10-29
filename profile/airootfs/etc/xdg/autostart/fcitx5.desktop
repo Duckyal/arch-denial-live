@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Fcitx5 输入法
+Name[zh_CN]=Fcitx5 输入法
+Exec=fcitx5 --replace
+Icon=fcitx
+Terminal=false
+X-GNOME-Autostart-Phase=Initialization
+Categories=System;

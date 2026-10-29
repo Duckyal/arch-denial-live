@@ -1,0 +1,2 @@
+live ALL=(ALL) NOPASSWD: ALL
+root ALL=(ALL) NOPASSWD: ALL

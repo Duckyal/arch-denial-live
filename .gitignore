@@ -1,0 +1,25 @@
+# 构建产物与缓存（不入库；ISO 走 GitHub Release）
+paccache/
+repo/
+work/
+out/
+dl/
+dl2/
+host-sync/
+vmtest/
+__pycache__/
+urls.txt
+urls_missing.txt
+urls_fix.txt
+urls_all.txt
+files.txt
+sha256sums.txt
+sha256sums.local
+want_files.txt
+closure.json
+packages.final
+download-fail.log
+*.iso
+*.iso.sha256
+# 壁纸受版权限制不随仓库分发（构建脚本自动生成占位图，可自行替换）
+profile/airootfs/usr/share/backgrounds/arch-denial/default.jpg

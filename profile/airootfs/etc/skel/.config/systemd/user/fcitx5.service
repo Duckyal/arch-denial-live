@@ -1,0 +1,14 @@
+[Unit]
+Description=Fcitx5 中文输入法
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sh -c 'until [ -S "$XDG_RUNTIME_DIR/wayland-0" ] || [ -n "$DISPLAY" ]; do sleep 0.3; done'
+Environment=GDK_BACKEND=wayland
+ExecStart=/usr/bin/fcitx5 --replace
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# 在 live 环境中为已安装的 Linux 系统（或当前 live 系统）安装桌面环境
+set -uo pipefail
+MODE=auto
+TARGET=/
+DE=""
+
+usage() {
+cat <<'U'
+用法: live-de [选项] <桌面>
+
+桌面:
+  denial          Denial Wayland 桌面（官方签名仓库，含 sddm 登录）
+  gnome           GNOME 桌面环境
+  kde             KDE Plasma 桌面
+  xfce            XFCE 桌面
+  mate            MATE 桌面
+  lxqt            LXQt 桌面
+  deepin          深度 DDE 桌面 (需 AUR，仅提示)
+  hyprland        Hyprland Wayland WM
+  sway            Sway Wayland WM
+  i3              i3 X11 WM
+  cinnamon        Cinnamon 桌面
+  budgie          Budgie 桌面
+  ena             Enlightenment/efl (可选)
+
+选项:
+  --target <目录>   安装到已挂载的系统根 (默认: 仅当前 live 系统)
+  --offline         只用 ISO 内置包（不需要网络）
+  --online          强制使用网络镜像
+  -h                显示帮助
+
+说明: live 环境已内置 denial + fcitx5；此脚本用于补装其它桌面。
+U
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --target) TARGET="$2"; shift 2;;
+    --offline) MODE=offline; shift;;
+    --online) MODE=online; shift;;
+    -h|--help) usage; exit 0;;
+    -*) echo "未知选项 $1"; usage; exit 1;;
+    *) DE="$1"; shift;;
+  esac
+done
+[ -n "$DE" ] || { usage; exit 1; }
+
+have_net() { ping -c1 -W3 archlinux.org >/dev/null 2>&1 || curl -fsI --max-time 6 https://mirrors.nju.edu.cn >/dev/null 2>&1; }
+if [ "$MODE" = auto ]; then
+  if have_net; then MODE=online; else echo ">> 无网络：请改用 sudo install-live（离线整盘复制安装）"; exit 1; fi
+fi
+
+# 选择 pacman 配置
+PACCONF=/etc/pacman.conf
+OFFLINE_REPO=/run/archiso/airootfs/offline_repo
+case "$MODE" in
+ offline)
+   echo "ISO 为最小化未内置仓库；离线请直接用: sudo install-live /dev/sdX 整盘复制安装"
+   exit 1
+   ;;
+ online)
+   PACCONF=/usr/local/etc/pacman-online.conf
+   echo ">> 模式: 在线（国内镜像 + denial 官方仓库）"
+   ;;
+esac
+
+P="pacman --config $PACCONF --noconfirm"
+[ "$TARGET" = "/" ] || P="$P -r $TARGET"
+
+echo ">> 同步数据库..."
+$P -Sy 2>&1 | tail -3 || true
+
+case "$DE" in
+ denial)
+   $P -S --needed denial denial-flutter-engine sddm seatd xdg-desktop-portal-gtk fcitx5 fcitx5-chinese-addons
+   ;;
+ gnome)
+   $P -S --needed gnome gnome-shell gdm networkmanager
+   systemctl -r "${TARGET%/}" enable gdm 2>/dev/null || true
+   ;;
+ kde)
+   $P -S --needed plasma plasma-desktop sddm dolphin konsole
+   systemctl -r "${TARGET%/}" enable sddm 2>/dev/null || true
+   ;;
+ xfce)
+   $P -S --needed xfce4 xfce4-goodies lightdm lightdm-gtk-greeter
+   ;;
+ mate)
+   $P -S --needed mate mate-session-manager lightdm lightdm-gtk-greeter
+   ;;
+ lxqt)
+   $P -S --needed lxqt sddm
+   ;;
+ cinnamon)
+   $P -S --needed cinnamon lightdm lightdm-gtk-greeter
+   ;;
+ budgie)
+   $P -S --needed budgie-desktop lightdm
+   ;;
+ hyprland)
+   $P -S --needed hyprland waybar foot fuzzel
+   ;;
+ sway)
+   $P -S --needed sway swayidle swaylock grim slurp wofi
+   ;;
+ i3)
+   $P -S --needed i3-wm i3status i3lock dmenu lightdm
+   ;;
+ deepin)
+   echo ">> deepin 在 AUR，需用 pamac/paru。给出命令："
+   echo "   paru -S deepin deepin-session-ui"
+   ;;
+ *) echo "未知桌面: $DE"; usage; exit 1;;
+esac
+RC=$?
+if [ $RC = 0 ]; then
+  echo ">> 安装 $DE 完成。显示管理器切换示例："
+  echo "   systemctl enable --now sddm     # denial / KDE"
+  echo "   systemctl enable --now gdm      # GNOME"
+  echo "   systemctl enable --now lightdm  # XFCE / MATE / Cinnamon"
+else
+  echo ">> 安装失败(rc=$RC)。可试另一种模式: live-de --online $DE 或 --offline"
+fi

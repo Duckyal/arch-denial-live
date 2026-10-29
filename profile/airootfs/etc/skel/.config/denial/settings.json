@@ -1,0 +1,14 @@
+{
+ "applicationEnvironment": {
+  "default": {
+   "XMODIFIERS": "@im=fcitx",
+   "SDL_IM_MODULE": "fcitx",
+   "GLFW_IM_MODULE": "ibus"
+  },
+  "applications": {}
+ },
+ "appearance": {
+  "cursorThemeId": "default",
+  "fontFamily": "Source Han Sans CN"
+ }
+}

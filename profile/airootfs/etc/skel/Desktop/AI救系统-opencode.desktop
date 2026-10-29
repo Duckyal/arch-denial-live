@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=AI 救援助手 (opencode)
+Exec=/usr/bin/foot -e sudo -i opencode
+Terminal=true
+Icon=utilities-terminal

@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# install-live —— 把当前 live 系统完整复制到硬盘（离线，不需要网络）
+#   sudo install-live /dev/sda             整盘自动分区并安装（会清空！）
+#   sudo install-live /dev/sda --keep      不改分区表，装到已有分区（需自备布局）
+#   sudo install-live --manual sda1 sda2   指定 [root分区] [esp分区]
+set -uo pipefail
+G(){ echo -e "\e[32m✓ $*\e[0m"; }
+Y(){ echo -e "\e[33m! $*\e[0m"; }
+R(){ echo -e "\e[31m✗ $*\e[0m" >&2; }
+[ "$(id -u)" = 0 ] || { R "请用 root 运行: sudo -i"; exit 1; }
+SRC=/run/archiso/airootfs
+[ -d $SRC ] || { R "不在 archiso live 环境（找不到 $SRC）"; exit 1; }
+MODE=auto; DISK=""; ROOTP=""; ESPP=""; SWAP_SIZE=$(( $(free -b | awk 'NR==2{print $2}') /2 > 8589934592 ? 17179869184 : 4294967296 ))
+args=("$@"); a=()
+for x in "${args[@]}"; do case "$x" in --keep) MODE=keep;; --*) ;; *) a+=("$x");; esac; done
+set -- "${a[@]:-}"
+DISK=${1:-}
+case "$MODE" in
+ auto)
+  [ -n "$DISK" ] && [ -b "$DISK" ] || { echo "可用磁盘:"; lsblk -d -o NAME,SIZE,MODEL,TRAN | grep -vE 'loop|sr'; read -rp "目标整盘(如 /dev/sda): " DISK; }
+  [ -b "$DISK" ] || { R "$DISK 不存在"; exit 1; }
+  SIZE=$(lsblk -b -d -n -o SIZE "$DISK")
+  if [ "$SIZE" -lt 8000000000 ]; then R "磁盘小于 8G，不够装"; exit 1; fi
+  Y "!!! 将清空 $DISK 上所有数据 !!!"
+  read -rp "输入该磁盘名($(basename $DISK))确认: " OK; [ "$OK" = "$(basename $DISK)" ] || { echo 取消; exit 1; }
+  parted -s $DISK mklabel gpt
+  parted -s $DISK mkpart esp  esp 1MiB 600MiB
+  parted -s $DISK mkpart swap linux-swap 600MiB $((600+SWAP_SIZE/1048576))MiB
+  parted -s $DISK mkpart root ext4 $((600+SWAP_SIZE/1048576))MiB 100%
+  parted -s $DISK name 1 '' ; parted -s $DISK set 1 esp on 2>/dev/null || true
+  ROOTP="${DISK}3"; ESPP="${DISK}1"
+  ;;
+ keep)
+  echo "可用分区:"; lsblk -p -o NAME,SIZE,FSTYPE,MOUNTPOINTS "$DISK"* 2>/dev/null || lsblk -f
+  read -rp "root 分区(如 /dev/sda2): " ROOTP; read -rp "EFI 分区(如 /dev/sda1, Legacy 直接回车): " ESPP
+  ;;
+esac
+[ -b "$ROOTP" ] || { R "root 分区无效"; exit 1; }
+G "root=$ROOTP esp=${ESPP:-无}"
+FSTYPE=$(lsblk -n -o FSTYPE "$ROOTP")
+[ "${FSTYPE}" != ext4 ] && { Y "将格式化为 ext4（或先手动制表）"; read -rp "确认格式化 $ROOTP? [y/N] " c; [ "$c" = y ] || exit 0; }
+mkfs.ext4 -qF "$ROOTP" || { R "mkfs 失败"; exit 1; }
+M=/mnt/target; mkdir -p $M; mount "$ROOTP" $M; G "已挂载 $ROOTP → $M"
+mkdir -p $M/boot/efi
+if [ -n "$ESPP" ] && [ -b "$ESPP" ]; then mkfs.vfat -F32 -n EFI "$ESPP" >/dev/null 2>&1; mount "$ESPP" $M/boot/efi; G "ESP 已挂载"; else Y "无 ESP（Legacy BIOS 模式）"; fi
+if [ "$MODE" = auto ]; then SW=$(blkid -L swap 2>/dev/null | head -1); [ -n "$SW" ] || SW=$(lsblk -n -p -o NAME,FSTYPE | awk '$2=="swap"{print $1;exit}'); fi
+# 复制 live 系统（去掉 archiso 专用内容）
+G "开始复制系统（rsync，约几分钟）"
+rsync -aHAXx --info=progress2 \
+  --exclude 'lost+found' \
+  --exclude 'var/cache/pacman/pkg/*' \
+  --exclude 'var/lib/pacman/sync/*' \
+  --exclude 'run/archiso' --exclude 'run/*' \
+  --exclude 'tmp/*' --exclude 'proc/*' --exclude 'sys/*' --exclude 'dev/*' \
+  $SRC/ $M/
+G "复制完成"
+# 基本目录
+for d in proc sys dev run tmp var/log var/cache; do mkdir -p $M/$d; done
+[ -e $M/etc/machine-id ] || : > $M/etc/machine-id
+# 生成 fstab
+ROOTUUID=$(blkid -U -o value "$ROOTP" | sed 's/^UUID=//')
+blkid -U "$ROOTP" | head -1 >/dev/null
+printf 'UUID=%s  /  ext4  rw,noatime  0 1\n' "$(blkid -s UUID -o value $ROOTP)" > $M/etc/fstab
+if [ -n "${ESPP:-}" ] && [ -b "$ESPP" ]; then printf 'UUID=%s  /boot/efi vfat umask=0077,shortname=lower,uid=0 0 2\n' "$(blkid -s UUID -o value $ESPP)" >> $M/etc/fstab; fi
+if [ -n "${SW:-}" ] && [ -b "$SW" ]; then printf 'UUID=%s  none swap defaults 0 0\n' "$(blkid -s UUID -o value $SW)" >> $M/etc/fstab; fi
+G "fstab:"; cat $M/etc/fstab
+# chroot 设置
+arch-chroot $M true 2>/dev/null || { mount --bind /dev $M/dev; mount -t proc proc $M/proc; mount -t sysfs sys $M/sys; mount --rbind /run $M/run 2>/dev/null; }
+arch-chroot $M locale-gen 2>/dev/null || true
+echo LANG=zh_CN.UTF-8 > $M/etc/locale.conf
+[ -f $M/etc/vconsole.conf ] || printf 'KEYMAP=us\nFONT=ter-132n\n' > $M/etc/vconsole.conf
+ln -sf /usr/share/zoneinfo/Asia/Shanghai $M/etc/localtime
+# 设置 root 密码（默认 live 空密码）
+read -rp "设置 root 密码(直接回车=留空/无密码登录): " RP; [ -n "$RP" ] && echo "root:$RP" | chroot $M /usr/bin/chpasswd || true
+# 引导
+G "安装引导加载器"
+arch-chroot $M pacman -Sy --noconfirm --needed grub efibootmgr os-prober >/dev/null 2>&1 || true
+if [ -n "${ESPP:-}" ] && [ -b "$ESPP" ]; then
+  arch-chroot $M grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB --recheck && G "grub UEFI 已装"
+else
+  arch-chroot $M grub-install --target=i386-pc "$DISK" --recheck && G "grub MBR 已装"
+fi
+arch-chroot $M grub-mkconfig -o /boot/grub/grub.cfg && G "grub.cfg 已生成"
+# 可选 systemd-boot
+if [ -n "${ESPP:-}" ]; then
+  arch-chroot $M bootctl install --no-variables 2>/dev/null && G "同时安装了 systemd-boot（可在固件里选）" || true
+fi
+# 关掉 live 专用服务，避免装完后行为异常
+arch-chroot $M systemctl disable getty@tty1 2>/dev/null; arch-chroot $M systemctl enable sddm NetworkManager sshd 2>/dev/null
+G "完成！卸载后重启："
+umount -R $M 2>/dev/null; umount -l $M 2>/dev/null || true
+echo "   sudo reboot   （从硬盘启动）"
+G "默认桌面：Denial（SDDM 登录，root 空密码或你设置的密码）"

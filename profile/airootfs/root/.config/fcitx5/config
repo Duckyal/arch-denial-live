@@ -1,0 +1,9 @@
+[Behavior]
+ActiveByDefault=True
+ShareState=Program
+
+[Hotkey]
+Trigger=CTRL
+Enumerate=CTRL+SHIFT+R SHIFT
+Rotate=CTRL+SHIFT+TAB TAB
+IMEHash=CTRL+1 CTRL+2 CTRL+3 CTRL+4
