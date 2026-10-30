@@ -71,7 +71,7 @@ if __name__=='__main__':
     dl=sum(pkgs[x]['csize'] for x in S); ins=sum(pkgs[x]['isize'] for x in S)
     print(f"闭包 {len(S)} 包  下载 {dl/mb:.0f}MB  安装 {ins/mb:.0f}MB")
     if miss: print("未解析:", sorted(set(miss))[:10])
-    M='https://mirrors.nju.edu.cn/archlinux'
+    M=os.environ.get('ARCH_MIRROR','https://mirrors.nju.edu.cn/archlinux')
     os.makedirs(outdir, exist_ok=True)
     with open(f'{outdir}/urls.txt','w') as f, open(f'{outdir}/sha256sums.txt','w') as g, open(f'{outdir}/files.txt','w') as w:
         for n in sorted(S):

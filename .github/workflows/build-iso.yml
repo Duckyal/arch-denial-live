@@ -81,16 +81,3 @@ jobs:
             out/*.iso
             out/*.sha256
           make_latest: true
-      - name: 归档今日版本并清理旧版（保留最近 5 份）
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TODAY=$(date +%Y.%m.%d)
-          gh api -X POST repos/{owner}/{repo}/git/refs -f ref="refs/tags/rolling-$TODAY" -f sha="${{ github.sha }}" 2>/dev/null \
-            || gh release edit "rolling-$TODAY" 2>/dev/null || true
-          # 把 rolling 的产物复制一份挂到今日 tag（软链发布）
-          gh release create "rolling-$TODAY" --title "构建 $TODAY" --notes-file release-notes.md out/*.iso out/*.sha256 2>/dev/null || true
-          # 删除超过 5 个的旧归档
-          for id in $(gh release list --limit 100 | awk '/^rolling-/ {print $1}' | tail -n +6); do
-            gh release delete "$id" --cleanup-tag --yes 2>/dev/null || true
-          done

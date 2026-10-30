@@ -12,8 +12,9 @@ get(){
   if [[ "$u" == *denialwm.github.io* ]]; then
     try=( "$u" "https://gh-proxy.com/$u" )
   else
-    path="${u#*archlinux/}"
-    try=( "$u" "https://geo.mirror.archlinux.org/archlinux/$path" \
+    # 从任意镜像 URL 提取 repo/os/arch/file 相对路径
+    path=$(echo "$u" | sed -E 's#https?://[^/]+/(archlinux/)?##')
+    try=( "$u" "https://geo.mirror.pkgbuild.com/$path" \
           "https://mirrors.ustc.edu.cn/archlinux/$path" "https://mirrors.zju.edu.cn/archlinux/$path" \
           "https://mirrors.sdu.edu.cn/archlinux/$path" "https://mirrors.bfsu.edu.cn/archlinux/$path" \
           "https://mirrors.aliyun.com/archlinux/$path" )
