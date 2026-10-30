@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=安装系统（在线向导 archinstall）
+Name[en]=Archinstall guided installer
+Comment=官方引导式安装器：分区/桌面/引导全程问答，需要联网
+Exec=/usr/bin/foot -e sudo archinstall
+Terminal=true
+Icon=system-file-manager
+Categories=System;Filesystem;

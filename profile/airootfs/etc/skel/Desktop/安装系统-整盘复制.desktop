@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Install Arch (离线整盘安装)
+Name=安装系统（离线整盘复制）
 Exec=/usr/bin/foot -e sudo install-live
 Terminal=true
 Icon=drive-harddisk
