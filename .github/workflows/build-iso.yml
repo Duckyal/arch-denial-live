@@ -64,6 +64,10 @@ jobs:
       - name: 生成 Release 说明
         run: |
           set -x
+          if ! ls out/ARCH-DENIAL-RESCUE-*.iso >/dev/null 2>&1; then
+            echo "::error title=ISO缺失::out/: $(ls -la out/ 2>&1 | tr '\n' '~') | ci.log尾: $(tail -8 ci.log 2>/dev/null | tr '\n' '~')"
+            exit 1
+          fi
           ISO=$(ls out/ARCH-DENIAL-RESCUE-*.iso | head -1)
           BASE=$(basename "$ISO" .iso)
           {
@@ -94,3 +98,12 @@ jobs:
             out/*.iso
             out/*.sha256
           make_latest: true
+      - name: 失败时上传诊断日志
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-diagnostic-${{ github.run_id }}
+          path: |
+            ci.log
+            out/
+          retention-days: 3
