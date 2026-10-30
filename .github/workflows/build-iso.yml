@@ -52,6 +52,11 @@ jobs:
         run: |
           docker run --rm --privileged -v "$PWD":/build -w /build \
             archlinux/archlinux:latest bash /build/scripts/ci-build.sh
+      - name: 产物诊断
+        run: |
+          echo "=== out/ ==="; ls -la out/ 2>&1
+          echo "=== 属主 ==="; stat -c "%U %a %n" out/* 2>&1 | head
+          echo "=== 当前用户 ==="; id
       - name: 生成 Release 说明
         run: |
           VER=$(date +%Y.%m.%d)
