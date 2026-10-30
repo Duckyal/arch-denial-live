@@ -1,0 +1,96 @@
+name: check-updates-and-build
+on:
+  schedule:
+    # 每小时第 17 分检查一次上游（避开整点拥堵）；有更新才构建
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '忽略版本检查，强制构建'
+        type: boolean
+        default: false
+  push:
+    paths:
+      - 'profile/**'
+      - 'scripts/**'
+      - 'packages.lock'
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.cmp.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 刷新 Arch 同步库并比对 packages.lock
+        id: cmp
+        run: |
+          # 在 arch 容器里读同步库（ubuntu runner 没有 pacman）
+          docker run --rm -v "$PWD":/build -w /build archlinux/archlinux:latest bash -c '
+            sed -i "s/^#Server = https:\/\/geo/Server = https:\/\/geo/" /etc/pacman.d/mirrorlist
+            pacman -Sy --noconfirm >/dev/null
+            bash scripts/check-updates.sh' && echo "changed=true" >> "$GITHUB_OUTPUT" || echo "changed=false" >> "$GITHUB_OUTPUT"
+      - name: 提交锁文件更新
+        if: steps.cmp.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages.lock
+          git commit -m "chore: 上游包版本更新 $(date +%F) [skip ci]"
+          git push
+
+  build:
+    needs: check
+    if: needs.check.outputs.changed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 容器内构建 ISO（特权 + loop 设备）
+        run: |
+          docker run --rm --privileged -v "$PWD":/build -w /build \
+            archlinux/archlinux:latest bash /build/scripts/ci-build.sh
+      - name: 生成 Release 说明
+        run: |
+          VER=$(date +%Y.%m.%d)
+          ISO=$(ls out/ARCH-DENIAL-RESCUE-*.iso | head -1)
+          BASE=$(basename "$ISO" .iso)
+          {
+            echo "滚动构建 $VER（含上游最新 opencode/denial 等全部包）"
+            echo
+            echo '```'
+            grep -E "^(opencode|denial|linux|sddm|fcitx5) " packages.lock
+            echo '```'
+            echo
+            echo "SHA256:"; cat "$ISO".sha256 2>/dev/null || (cd out && sha256sum "$BASE.iso")
+            echo
+            echo "写盘: sudo dd if=$BASE.iso of=/dev/sdX bs=4M status=progress"
+            echo "或 Ventoy 直接拷入。首次使用双击桌面『U盘持久化设置』即可开启持久模式。"
+          } > release-notes.md
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+      - name: 发布/更新滚动 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: rolling
+          name: "滚动构建 (rolling)"
+          body_path: release-notes.md
+          prerelease: false
+          files: |
+            out/*.iso
+            out/*.sha256
+          make_latest: true
+      - name: 归档今日版本并清理旧版（保留最近 5 份）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TODAY=$(date +%Y.%m.%d)
+          gh api -X POST repos/{owner}/{repo}/git/refs -f ref="refs/tags/rolling-$TODAY" -f sha="${{ github.sha }}" 2>/dev/null \
+            || gh release edit "rolling-$TODAY" 2>/dev/null || true
+          # 把 rolling 的产物复制一份挂到今日 tag（软链发布）
+          gh release create "rolling-$TODAY" --title "构建 $TODAY" --notes-file release-notes.md out/*.iso out/*.sha256 2>/dev/null || true
+          # 删除超过 5 个的旧归档
+          for id in $(gh release list --limit 100 | awk '/^rolling-/ {print $1}' | tail -n +6); do
+            gh release delete "$id" --cleanup-tag --yes 2>/dev/null || true
+          done

@@ -30,7 +30,8 @@ PY
   # 状态文件指向 jpg 而占位是 png 时，重命名统一
   [ -f "${WP%.jpg}.png" ] && mv "${WP%.jpg}.png" "$WP" 2>/dev/null || true
 fi
-[ -f urls.txt ] || { echo ">> 解析依赖闭包"; python3 scripts/deps.py profile/packages.x86_64; }
+echo ">> 解析依赖闭包（每次重新解析，滚动拿上游最新版）"
+python3 scripts/deps.py profile/packages.x86_64
 bash scripts/fetch-packages.sh
 bash scripts/make-repo.sh
 mkdir -p work out

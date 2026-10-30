@@ -13,7 +13,8 @@ get(){
     try=( "$u" "https://gh-proxy.com/$u" )
   else
     path="${u#*archlinux/}"
-    try=( "$u" "https://mirrors.ustc.edu.cn/archlinux/$path" "https://mirrors.zju.edu.cn/archlinux/$path" \
+    try=( "$u" "https://geo.mirror.archlinux.org/archlinux/$path" \
+          "https://mirrors.ustc.edu.cn/archlinux/$path" "https://mirrors.zju.edu.cn/archlinux/$path" \
           "https://mirrors.sdu.edu.cn/archlinux/$path" "https://mirrors.bfsu.edu.cn/archlinux/$path" \
           "https://mirrors.aliyun.com/archlinux/$path" )
   fi

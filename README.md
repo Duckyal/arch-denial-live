@@ -81,6 +81,18 @@ sudo -i opencode
 引导：grub / systemd-boot / refind / efibootmgr / os-prober / memtest86+
 硬件：常见 Intel/AMD/Realtek/Broadcom/MediaTek/Atheros 固件 + CPU 微码
 
+## 持续集成（自动跟随上游更新）
+
+仓库内置 GitHub Actions 工作流（`.github/workflows/build-iso.yml`）：
+
+- **每小时**在云端拉取 Arch 官方仓库最新包版本，与 `packages.lock` 比对
+- **有更新才构建**（opencode 免费额度依赖新版客户端、denial 频繁发版，全部自动跟进）
+- 构建产物自动发布到 Release：`rolling`（最新版，直接下载用）+ 每日归档 `rolling-YYYY.MM.DD`（保留最近 5 份）
+- 修改 `profile/` 或 `scripts/` 推上来也会触发一次完整构建
+- 也可在 Actions 页面手动触发（支持"强制构建"）
+
+也就是说：你只需要维护 `profile/packages.x86_64`（想装/删什么软件），ISO 由云端自动保持新鲜。
+
 ## 从源码构建
 
 ```bash
