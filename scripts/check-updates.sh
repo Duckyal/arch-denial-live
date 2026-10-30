@@ -44,6 +44,8 @@ def res(d):
     if d in pkgs: return d
     for x in provides.get(d,[]):
         if x in pkgs: return x
+if len(pkgs) < 1000:
+    print(f"::error::同步库异常（仅解析到 {len(pkgs)} 个包），pacman -Sy 可能失败"); sys.exit(2)
 req=[l.strip() for l in open('profile/packages.x86_64') if l.strip() and not l.startswith('#')]
 seen=set(); st=[res(r) for r in req]; st=[x for x in st if x]
 while st:

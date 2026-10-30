@@ -1,34 +1,35 @@
 #!/usr/bin/env bash
 # 一键构建：壁纸占位(若无) -> 生成闭包 -> 下载 -> 本地仓库 -> mkarchiso
-# 依赖: archiso(宿主或 docker 镜像), pacman 同步库已刷新
+# 依赖: archiso(宿主或容器内), pacman 同步库已刷新
 set -euo pipefail
 cd "$(dirname "$0")/.."
 WP=profile/airootfs/usr/share/backgrounds/arch-denial/default.jpg
 if [ ! -f "$WP" ]; then
   echo ">> 壁纸不存在，生成渐变占位图（可提前放入你自己的 jpg 替换）"
   mkdir -p "$(dirname "$WP")"
-  convert -size 1920x1080 gradient:'#0f2027-#2c5364' "$WP" 2>/dev/null || \
-    python3 - "$WP" <<'PY'
-import zlib,struct,sys
-w,h=1920,1080
-def chunk(t,d):
-    c=struct.pack('>I',len(d))+t+d
-    return c+struct.pack('>I',zlib.crc32(t+d)&0xffffffff)
-raw=b''.join(b'\x00'+bytes([ (x*35//w+15, (y*40//h+32)//2, 60+(x+y)*30//(w+h) ][0] if False else 0 for x in range(w) for y in [] )) for _ in [])
-rows=[]
+  if command -v convert >/dev/null 2>&1; then
+    convert -size 1920x1080 gradient:'#0f2027-#2c5364' "$WP"
+  else
+    python3 - "$WP" <<'INNERPY'
+import zlib, struct, sys
+w, h = 1920, 1080
+def chunk(t, d):
+    c = struct.pack('>I', len(d)) + t + d
+    return c + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+rows = []
 for y in range(h):
-    row=b'\x00'
+    row = b'\x00'
     for x in range(w):
-        r=15+(x*35)//w; g=32+(y*40)//h; b=60+(x+y)*30//(w+h)
-        row+=bytes((r,g,b))
+        row += bytes((15 + (x * 35) // w, 32 + (y * 40) // h, 60 + ((x + y) * 30) // (w + h)))
     rows.append(row)
-data=zlib.compress(b''.join(rows),9)
-png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',data)+chunk(b'IEND',b'')
-open(sys.argv[1],'wb').write(png)
-print("placeholder png written")
-PY
-  # 状态文件指向 jpg 而占位是 png 时，重命名统一
-  [ -f "${WP%.jpg}.png" ] && mv "${WP%.jpg}.png" "$WP" 2>/dev/null || true
+data = zlib.compress(b''.join(rows), 9)
+png = (b'\x89PNG\r\n\x1a\n'
+       + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))
+       + chunk(b'IDAT', data) + chunk(b'IEND', b''))
+open(sys.argv[1], 'wb').write(png)
+print("placeholder wallpaper written:", sys.argv[1])
+INNERPY
+  fi
 fi
 echo ">> 解析依赖闭包（每次重新解析，滚动拿上游最新版）"
 python3 scripts/deps.py profile/packages.x86_64
@@ -41,6 +42,7 @@ trap 'cp /tmp/pacman.conf.orig profile/pacman.conf' EXIT
 sed -i "s|/build/paccache|$PWD/paccache|; s|file:///build/repo|file://$PWD/repo|" profile/pacman.conf
 # 宿主有 root 就直接跑，否则用 docker 特权容器
 if [ "$(id -u)" = 0 ] && command -v mkarchiso >/dev/null; then
+  mkdir -p /etc/pacman.d/gnupg
   mkarchiso -v -w work -o out profile
 else
   docker run --rm --privileged -v "$PWD":/build archiso-builder:tools \
