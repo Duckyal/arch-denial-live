@@ -83,7 +83,7 @@ jobs:
           } > release-notes.md
           echo "BASE=$BASE" >> "$GITHUB_ENV"
           ls -la out/
-            - name: 发布/更新滚动 Release
+      - name: 发布/更新滚动 Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: rolling
