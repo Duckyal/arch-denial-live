@@ -159,6 +159,16 @@ TRIM
 echo "sessions customized"
 chmod +x /usr/local/bin/denial-launch /usr/local/bin/fixboot /usr/local/bin/install-live /usr/local/bin/live-de 2>/dev/null || true
 
+
+# ===== 桌面入口清理：隐藏重复/无用的启动项 =====
+for d in footclient foot-server uxterm; do
+  f=/usr/share/applications/$d.desktop
+  [ -f "$f" ] && sed -i '/^NoDisplay/d; /^Categories/a NoDisplay=true' "$f"
+done
+# 桌面图标同步到 root（root 自动登录时也能看到救援图标）
+mkdir -p /root/Desktop && cp -f /etc/skel/Desktop/*.desktop /root/Desktop/ 2>/dev/null || true
+echo "entries cleaned"
+
 echo "customize done"
 # 壁纸与 denial 状态（skel -> /home/live）
 mkdir -p /home/live/.local/state/denial

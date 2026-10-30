@@ -21,5 +21,3 @@ packages.final
 download-fail.log
 *.iso
 *.iso.sha256
-# 壁纸受版权限制不随仓库分发（构建脚本自动生成占位图，可自行替换）
-profile/airootfs/usr/share/backgrounds/arch-denial/default.jpg

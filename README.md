@@ -114,4 +114,5 @@ bash scripts/build-iso.sh             # 解析闭包→下载→本地仓库→m
 
 - 本仓库构建配置与脚本：GPL-3.0
 - Denial 桌面：GPL-3.0-or-later / CC-BY-SA-4.0（见上游）
-- 壁纸：请自行放入 `profile/airootfs/usr/share/backgrounds/arch-denial/default.jpg`（受版权保护，不随仓库分发；缺省自动生成占位渐变图）
+- 默认壁纸：网易《阴阳师》官网「视听说」栏目公开素材（1920×1080），在本开源项目中作为桌面默认壁纸分发；
+  如版权方要求移除，将自动回退为构建脚本生成的占位渐变图。可自行替换该路径下的 jpg 后重新构建
