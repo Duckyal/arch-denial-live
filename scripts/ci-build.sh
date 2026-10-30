@@ -28,6 +28,23 @@ for p in opencode denial linux sddm fcitx5; do
 done > out/versions.txt || true
 cat out/versions.txt || true
 echo "::endgroup::"
+BASE=$(basename "$ISO" .iso)
+{
+  echo "滚动构建：含上游最新 opencode/denial 等全部包（自动跟随更新）"
+  echo
+  echo '```'
+  grep -E "^(opencode|denial|linux|sddm|fcitx5) " packages.lock || true
+  echo '```'
+  echo
+  echo "SHA256:"
+  echo '```'
+  cat "$ISO.sha256"
+  echo '```'
+  echo
+  echo "写盘: sudo dd if=$BASE.iso of=/dev/sdX bs=4M status=progress oflag=sync"
+  echo "或 Ventoy 直接拷入。首次使用双击桌面『U盘持久化设置』，重启选『持久模式』。"
+} > release-notes.md
+test -s release-notes.md || { echo "::error::release-notes 生成失败"; exit 1; }
 # runner 用户 uid=1000，归还属主避免 checkout 清理失败
 chown -R 1000:1000 /build 2>/dev/null || true
 echo "CI BUILD OK"
