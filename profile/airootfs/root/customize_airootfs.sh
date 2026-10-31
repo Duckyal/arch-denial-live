@@ -47,6 +47,10 @@ done
 # 开机自动进 X（tty1 无需手动 startx；sddm 已接管）。为纯文本应急保留 root tty2 autologin。
 mkdir -p /etc/systemd/system/getty@tty2.service.d
 printf '[Service]\nExecStart=\nExecStart=-/usr/bin/agetty --autologin root --noclear %%I $TERM\n' >/etc/systemd/system/getty@tty2.service.d/override.conf
+# 密钥环常开（denial 保存 WiFi 密码依赖 org.freedesktop.secrets；D-Bus 激活之外的双保险）
+mkdir -p /etc/systemd/user/sockets.target.wants /etc/systemd/user/default.target.wants
+ln -sf /usr/lib/systemd/user/gnome-keyring-daemon.socket /etc/systemd/user/sockets.target.wants/gnome-keyring-daemon.socket
+ln -sf /usr/lib/systemd/user/gnome-keyring-daemon.service /etc/systemd/user/default.target.wants/gnome-keyring-daemon.service
 # 提示文件
 ln -sf /usr/local/share/README-使用说明.txt /root/README.txt 2>/dev/null || true
 ln -sf /usr/local/share/README-使用说明.txt /home/live/Desktop/README.txt 2>/dev/null || true

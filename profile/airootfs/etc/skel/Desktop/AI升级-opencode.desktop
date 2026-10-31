@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=升级AI助手 (opencode)
+Name[en]=Upgrade opencode agent
+Comment=联网一键升级 opencode 到最新版（免费额度依赖新版本）
+Exec=/usr/bin/foot -e sudo ai-upgrade
+Terminal=true
+Icon=system-software-update
+Categories=System;

@@ -1,4 +1,5 @@
 [Desktop Entry]
+Categories=System;
 Type=Application
 Name=修复 Linux 引导
 Exec=/usr/bin/foot -e sudo fixboot linux

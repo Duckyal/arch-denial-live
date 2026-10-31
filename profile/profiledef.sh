@@ -27,4 +27,5 @@ file_permissions=(
   ["/usr/local/bin/denial-launch"]="0:0:755"
   ["/usr/local/bin/persist-setup"]="0:0:755"
   ["/usr/local/bin/persist-make"]="0:0:755"
+  ["/usr/local/bin/ai-upgrade"]="0:0:755"
 )

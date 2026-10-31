@@ -28,8 +28,14 @@ Arch + Denial 救援 Live —— 使用说明
 
 四、AI 救援助手（自带，免费额度）
   opencode —— 终端里跑 `sudo -i opencode`
-    · 内置 opencode/* 模型（OpenCode Zen）有免费额度，无需 API key 即可登录使用
+    · 首次用先登录：/connect → 选 OpenCode，浏览器打开 https://opencode.ai/console
+      （无浏览器时页面会给设备码，用手机打开也行）
+    · 免费用法：/models 里选名字带 -free 的模型（限时免费，如
+      DeepSeek V4.1 Flash Free / GLM-5.3-Flash Free），默认已预置，可直接对话
+    · 提示"需要 credits"= 你选到了付费模型（Console 按量计费，充 5 刀能用很久）
+    · 桌面图标 "AI 升级" 或终端 ai-upgrade：升级客户端并自动切到当前免费模型
     · 也支持 GitHub Copilot 免费额度、以及自定义 API key
+    · 登录/选择状态只有开『持久模式』启动才保留（见第十二节），普通模式每次全新
     · 直接对它说："这台机器 grub 坏了进不去系统，帮我修" 
   gemini-cli —— Google 个人账号免费额度（未预装省体积）：
     sudo pacman -S gemini-cli && gemini   （登录 Gemini 账号即可）
@@ -68,7 +74,38 @@ Arch + Denial 救援 Live —— 使用说明
   镜像源在 /etc/pacman.d/mirrorlist（南大/中科大/浙大/山大优先）。
 
 
-十一、U 盘数据持久化（重启不丢改动）
+九、Wi-Fi：连接带密码的网络
+  denial 桌面右上角网络面板可直接连加密 WiFi。首次保存密码时如弹出
+  「解锁密钥环/创建密钥」提示，直接确认即可（live 密钥环是空密码）。
+  面板异常时终端兜底（任意终端均可）：
+    nmtui                                    # 字符界面：Activate a connection → 选 SSID → 输密码
+    nmcli dev wifi connect "网络名" password "密码"   # 一条命令
+  密码保存在系统密钥环（gnome-keyring）。注意：密钥环在 live 用户家目录里，
+  普通模式重启即清空；想保存 WiFi/登录状态请开持久模式（第十二节）。
+
+十、远程救援（另一台电脑 SSH 进来操作）
+  live 里 root 空密码只能本机串口/TTY 用；要 SSH 先设密码：
+    sudo passwd root        # 输两次密码
+  然后另一台机器: ssh root@<live机IP>  （live 里 ip a 看 IP，或 nmcli -t -f IP.ADDR4 dev）
+  插网线直连最稳；没网线就手机 USB 共享后两台都在同网段。
+
+十一、没网也能让 AI 干活？
+  事实：opencode/gemini-cli 的模型在云端，纯离线无法推理。但——
+  1) 手机 USB 共享上网（推荐）：数据线插电脑 → 手机开"USB网络共享"
+     → live 里自动出现 usb0/rndis 网卡，NetworkManager 自动获取 IP。
+     验证：nmcli -t -f STATE g  或  curl -sI https://mirrors.nju.edu.cn | head -1
+  2) 有线网口直插即通；WiFi 用 nmtui 或 denial 桌面右上角网络面板。
+  3) 纯离线救援：不靠 AI，用 fixboot / install-live / chntpw / testdisk /
+     ddrescue / fsarchiver（全部内置，见上面各节）。
+  4) 想要真·离线本地模型（自备 ≥3G 空间，不占 ISO）：
+     在有网机器上执行：
+       curl -L -o llama.zip https://github.com/ggml-org/llama.cpp/releases/download/b????/llama-b????-bin-ubuntu-x64.zip
+       curl -L -o qwen-coder.gguf https://hf-mirror.com/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main/qwen2.5-coder-3b-instruct-q4_k_m.gguf
+     解压到 U 盘某分区，离线时挂上：
+       llama-cli -m qwen-coder.gguf -p "我的 /etc/fstab 挂了，grub 报 no such device，帮我逐步排查"
+     3B 小模型能读懂日志/写配置/讲步骤，救砖够用，别指望它写大段代码。
+
+十二、U 盘数据持久化（重启不丢改动）
   第一次用（任意模式启动进桌面后）：
     桌面图标『U盘持久化设置』或终端执行: sudo persist-make
     （自动在 U 盘尾部建 CASPER_RW 分区, ext4）
@@ -84,26 +121,4 @@ Arch + Denial 救援 Live —— 使用说明
       若空间不足，也可另插一个 U 盘，手动把它格式化成标签 CASPER_RW 再启动）
     - 想换回干净系统：删掉 CASPER_RW 分区里的 persistent_* 目录即可
     - CASPER_RW 是 ext4（cow 持久化机制要求，Windows 不能直接读）；
-    要给 Windows 拷数据：另插一只 exFAT U 盘，或用 Ventoy 盘自带的 exFAT 分区
-
-九、远程救援（另一台电脑 SSH 进来操作）
-  live 里 root 空密码只能本机串口/TTY 用；要 SSH 先设密码：
-    sudo passwd root        # 输两次密码
-  然后另一台机器: ssh root@<live机IP>  （live 里 ip a 看 IP，或 nmcli -t -f IP.ADDR4 dev）
-  插网线直连最稳；没网线就手机 USB 共享后两台都在同网段。
-
-十、没网也能让 AI 干活？
-  事实：opencode/gemini-cli 的模型在云端，纯离线无法推理。但——
-  1) 手机 USB 共享上网（推荐）：数据线插电脑 → 手机开"USB网络共享"
-     → live 里自动出现 usb0/rndis 网卡，NetworkManager 自动获取 IP。
-     验证：nmcli -t -f STATE g  或  curl -sI https://mirrors.nju.edu.cn | head -1
-  2) 有线网口直插即通；WiFi 用 nmtui 或 denial 桌面右上角网络面板。
-  3) 纯离线救援：不靠 AI，用 fixboot / install-live / chntpw / testdisk /
-     ddrescue / fsarchiver（全部内置，见上面各节）。
-  4) 想要真·离线本地模型（自备 ≥3G 空间，不占 ISO）：
-     在有网机器上执行：
-       curl -L -o llama.zip https://github.com/ggml-org/llama.cpp/releases/download/b????/llama-b????-bin-ubuntu-x64.zip
-       curl -L -o qwen-coder.gguf https://hf-mirror.com/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main/qwen2.5-coder-3b-instruct-q4_k_m.gguf
-     解压到 U 盘某分区，离线时挂上：
-       llama-cli -m qwen-coder.gguf -p "我的 /etc/fstab 挂了，grub 报 no such device，帮我逐步排查"
-     3B 小模型能读懂日志/写配置/讲步骤，救砖够用，别指望它写大段代码。
+      要给 Windows 拷数据：另插一只 exFAT U 盘，或用 Ventoy 盘自带的 exFAT 分区

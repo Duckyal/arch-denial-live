@@ -1,4 +1,5 @@
 [Desktop Entry]
+Categories=System;
 Type=Application
 Name=AI 救援助手 (opencode)
 Exec=/usr/bin/foot -e sudo -i opencode

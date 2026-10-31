@@ -8,7 +8,7 @@
   整盘装(离线)      sudo install-live /dev/sdX   (把 live 系统装进硬盘)
   装别的桌面        live-de gnome|kde|xfce|hyprland|... (在线)
   标准安装          archinstall  (引导式安装器)
-  AI 救系统         opencode     (免费额度: /auth 里选 OpenCode Zen)
+  AI 救系统         opencode     (登录: /connect 选 OpenCode; 免费模型 /models 里带 -free 的)
                     gemini-cli 需在线安装: sudo pacman -S gemini-cli
   中文输入法        已默认 fcitx5+拼音, Shift 切换
   磁盘工具          gparted / testdisk / ddrescue / fsarchiver / chntpw

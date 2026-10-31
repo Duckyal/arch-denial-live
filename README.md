@@ -62,7 +62,7 @@ live-de gnome|kde|xfce|mate|lxqt|cinnamon|hyprland|sway|i3   # 在线补装其�
 sudo -i opencode
 ```
 
-- [opencode](https://opencode.ai)（Arch 官方仓库包）：`/auth` 选 **OpenCode Zen** 免费模型额度，无需 API key；也支持 GitHub Copilot 免费额度
+- [opencode](https://opencode.ai)（Arch 官方仓库包）：`/connect` 登录 **OpenCode**（原 Zen，现为 Console），`/models` 选名字带 `-free` 的限时免费模型即可白嫖（默认已预置 DeepSeek V4.1 Flash Free）；也支持 GitHub Copilot 免费额度
 - 可选（在线安装）：`gemini-cli`（Google 个人账号免费额度）、`qwen-code`（通义免费额度）
 - 纯离线场景：AI 无法推理（模型在云端），但内置的 fixboot/install-live/testdisk/ddrescue 等全部离线可用；也可手机 **USB 共享网络**秒级联网后继续用 AI
 

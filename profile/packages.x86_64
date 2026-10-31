@@ -65,6 +65,9 @@ udisks2
 # ---- 网络 ----
 networkmanager
 iwd
+# Secret Service provider：denial 密码面板保存 WiFi PSK 必需。
+# 缺 org.freedesktop.secrets 服务时，denial"需要密码"处的确认按钮不可按（能连上但存不下密码）。
+gnome-keyring
 openssh
 wget
 curl

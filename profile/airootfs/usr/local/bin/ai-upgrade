@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# 一键升级 AI agent 到 Arch 仓库最新版（opencode 免费额度依赖较新客户端）
+set -uo pipefail
+echo "=== AI Agent 升级 ==="
+# 1) 选国内最快镜像（若未手动配置过）
+if [ ! -s /etc/pacman.d/mirrorlist.picked ]; then
+  echo "[1/3] 测速选择镜像..."
+  if command -v reflector >/dev/null 2>&1; then
+    reflector -c CN -l 8 -p https --sort-rate -o /etc/pacman.d/mirrorlist --save /etc/pacman.d/mirrorlist.saved 2>/dev/null || true
+  fi
+  # 兜底：写入常用国内源
+  if ! grep -q "^Server" /etc/pacman.d/mirrorlist 2>/dev/null; then
+    cat > /etc/pacman.d/mirrorlist <<'ML'
+Server = https://mirrors.nju.edu.cn/archlinux/$repo/os/$arch
+Server = https://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch
+Server = https://mirrors.zju.edu.cn/archlinux/$repo/os/$arch
+ML
+  fi
+  : > /etc/pacman.d/mirrorlist.picked
+fi
+echo "[2/4] 刷新并升级 opencode..."
+pacman -Sy --noconfirm 2>&1 | tail -2
+pacman -S --noconfirm --needed opencode 2>&1 | tail -4
+
+echo "[3/4] 校对免费模型（OpenCode Zen 已改名为 Console，免费的是限时 *-free 模型）..."
+# 从推理端点取当前还在免费的列表，挑一个对话模型写进用户配置；全部下架则不动配置
+FREE=$(curl -fsSL --connect-timeout 8 https://opencode.ai/inference/v1/models 2>/dev/null \
+  | grep -o '"id":"[a-z0-9._-]*-free"' | sed 's/"id":"//;s/"//' \
+  | grep -vE 'jev|super-vl' | head -1)
+if [ -n "$FREE" ]; then
+  for home_cfg in /home/live/.config/opencode/opencode.json "$HOME/.config/opencode/opencode.json"; do
+    [ -f "$home_cfg" ] || continue
+    sed -i "s#\"model\": \"opencode/[^\"]*\"#\"model\": \"opencode/$FREE\"#" "$home_cfg"
+    echo "  已切换默认模型: opencode/$FREE -> $home_cfg"
+  done
+else
+  echo "  （无可用免费模型或网络不通，保持现有配置）"
+fi
+
+echo "[4/4] 完成。当前版本: $(opencode --version 2>/dev/null)"
+echo
+echo "提示: opencode 里 /connect 选 OpenCode，或 /models 挑名字带 -free 的模型（限时免费）"
+echo "      登录走浏览器 https://opencode.ai/console；开启『持久模式』登录状态会保留"
