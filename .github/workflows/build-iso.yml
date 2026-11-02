@@ -32,6 +32,8 @@ jobs:
           docker run --rm -v "$PWD":/build -w /build archlinux/archlinux:latest bash -c '
             sed -i "s/^#Server = https:\/\/geo/Server = https:\/\/geo/" /etc/pacman.d/mirrorlist
             pacman -Sy --noconfirm >/dev/null
+            # 官方镜像 2026-10 起默认不含 python，check-updates.sh 依赖它
+            pacman -S --noconfirm --needed python >/dev/null
             bash scripts/check-updates.sh' && echo "changed=true" >> "$GITHUB_OUTPUT" || echo "changed=false" >> "$GITHUB_OUTPUT"
       - name: 提交锁文件更新
         if: steps.cmp.outputs.changed == 'true'
