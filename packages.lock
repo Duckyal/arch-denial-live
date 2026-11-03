@@ -435,7 +435,7 @@ python-linkify-it-py 2.2.0-1
 python-markdown-it-py 4.2.0-1
 python-mdit_py_plugins 0.6.1-1
 python-mdurl 0.1.2-9
-python-platformdirs 4.13.5-1
+python-platformdirs 4.14.3-1
 python-pycparser 3.12-1
 python-pydantic 2.14.2-1
 python-pydantic-core 3:2.50.2-1
