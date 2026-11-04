@@ -61,15 +61,27 @@ for line in open('packages.lock'):
     parts=line.split(None,1)
     if len(parts)==2: old[parts[0]]=parts[1].strip()
 changed=[(n,old.get(n,'∅'),v) for n,v in sorted(new.items()) if old.get(n)!=v]
-if not changed:
+# 触发策略：只有 opencode 出新版本才构建（AI 免费额度依赖客户端版本）；
+# 其它包的变化仅刷新锁文件（构建时 deps.py 本来就实时解析最新闭包，不受锁影响）。
+trigger=[c for c in changed if c[0]=='opencode']
+if not trigger:
+    if changed:
+        print("== 其它包有更新（刷新锁文件，不触发构建） ==")
+        for n,a,b in changed[:8]: print(f"  {n}: {a} -> {b}")
+        with open('packages.lock.new','w') as f:
+            for n in sorted(new): f.write(f"{n} {new[n]}\n")
+        print("WROTE packages.lock.new")
+        sys.exit(3)
     print("NOCHANGES"); sys.exit(1)
-print("== 版本变化 ==")
-for n,a,b in changed: print(f"  {n}: {a} -> {b}")
+print("== opencode 更新，触发构建 ==")
+for n,a,b in trigger: print(f"  {n}: {a} -> {b}")
 with open('packages.lock.new','w') as f:
     for n in sorted(new): f.write(f"{n} {new[n]}\n")
 print("WROTE packages.lock.new")
 PY
 RC=$?
-[ $RC -eq 1 ] && exit 1
-[ $RC -eq 0 ] && mv packages.lock.new packages.lock && exit 0
+# 退出码约定: 0=opencode 有更新(要构建) 3=仅其它包更新(只刷锁) 1=无变化 2=错误
+case $RC in
+  0|3) mv packages.lock.new packages.lock ;;
+esac
 exit $RC

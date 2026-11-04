@@ -1,7 +1,7 @@
 name: check-updates-and-build
 on:
   schedule:
-    # 每小时第 17 分检查一次上游（避开整点拥堵）；有更新才构建
+    # 每小时第 17 分检查一次上游（避开整点拥堵）；仅 opencode 有更新才构建
     - cron: '17 * * * *'
   workflow_dispatch:
     inputs:
@@ -9,11 +9,6 @@ on:
         description: '忽略版本检查，强制构建'
         type: boolean
         default: false
-  push:
-    paths:
-      - 'profile/**'
-      - 'scripts/**'
-      - '.github/workflows/build-iso.yml'
 
 permissions:
   contents: write
@@ -23,30 +18,39 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.cmp.outputs.changed }}
+      lockonly: ${{ steps.cmp.outputs.lockonly }}
     steps:
       - uses: actions/checkout@v4
       - name: 刷新 Arch 同步库并比对 packages.lock
         id: cmp
         run: |
           # 在 arch 容器里读同步库（ubuntu runner 没有 pacman）
+          # check-updates.sh 退出码: 0=opencode 更新(构建) 3=其它包更新(只刷锁) 1=无变化 2=错误
+          rc=0
           docker run --rm -v "$PWD":/build -w /build archlinux/archlinux:latest bash -c '
             sed -i "s/^#Server = https:\/\/geo/Server = https:\/\/geo/" /etc/pacman.d/mirrorlist
             pacman -Sy --noconfirm >/dev/null
             # 官方镜像 2026-10 起默认不含 python，check-updates.sh 依赖它
             pacman -S --noconfirm --needed python >/dev/null
-            bash scripts/check-updates.sh' && echo "changed=true" >> "$GITHUB_OUTPUT" || echo "changed=false" >> "$GITHUB_OUTPUT"
+            bash scripts/check-updates.sh' || rc=$?
+          case $rc in
+            0) echo "changed=true" >> "$GITHUB_OUTPUT";  echo "lockonly=true" >> "$GITHUB_OUTPUT" ;;
+            3) echo "changed=false" >> "$GITHUB_OUTPUT"; echo "lockonly=true" >> "$GITHUB_OUTPUT" ;;
+            1) echo "changed=false" >> "$GITHUB_OUTPUT"; echo "lockonly=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::check-updates.sh 异常退出 rc=$rc"; exit $rc ;;
+          esac
       - name: 提交锁文件更新
-        if: steps.cmp.outputs.changed == 'true'
+        if: steps.cmp.outputs.lockonly == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add packages.lock
-          git commit -m "chore: 上游包版本更新 $(date +%F) [skip ci]"
+          git commit -m "chore: 上游包版本更新 $(date +%F) [skip ci]" || echo "无实际差异，跳过提交"
           git push
 
   build:
     needs: check
-    if: needs.check.outputs.changed == 'true' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force)
+    if: needs.check.outputs.changed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
