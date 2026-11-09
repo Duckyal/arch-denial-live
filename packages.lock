@@ -48,7 +48,7 @@ dconf 51.0-1
 ddcutil 3.0.2-1
 ddrescue 1.30-2
 default-cursors 3-1
-desktop-file-utils 0.28-1
+desktop-file-utils 0.29-1
 device-mapper 2.03.44-1
 dialog 1:1.3_20260721-1
 diffutils 3.12-2
@@ -283,7 +283,7 @@ libsodium 1.0.22-1
 libsoup3 3.8.1-1
 libssh2 1.11.1-7
 libstdc++ 16.2.1+r23+gd564253eb6c8-1
-libstemmer 3.1.1-1
+libstemmer 3.2.0-1
 libsysprof-capture 51.0-1
 libtasn1 4.21.0-1
 libtatsu 1.0.5-1
