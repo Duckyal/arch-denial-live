@@ -29,9 +29,9 @@ jobs:
           rc=0
           docker run --rm -v "$PWD":/build -w /build archlinux/archlinux:latest bash -c '
             sed -i "s/^#Server = https:\/\/geo/Server = https:\/\/geo/" /etc/pacman.d/mirrorlist
-            pacman -Sy --noconfirm >/dev/null
-            # 官方镜像 2026-10 起默认不含 python，check-updates.sh 依赖它
-            pacman -S --noconfirm --needed python >/dev/null
+            # 单事务 -Syu 装 python：镜像 2026-11 起内置 openssl 落后仓库，
+            # 只 -Sy 不升级再 -S 会撞 openssl-3 文件冲突（部分升级炸）
+            pacman -Syu --noconfirm python >/dev/null
             bash scripts/check-updates.sh' || rc=$?
           case $rc in
             0) echo "changed=true" >> "$GITHUB_OUTPUT";  echo "lockonly=true" >> "$GITHUB_OUTPUT" ;;

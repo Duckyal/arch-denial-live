@@ -7,8 +7,8 @@ echo "::group::工具链"
 printf 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch\n' > /etc/pacman.d/mirrorlist
 pacman-key --init >/dev/null 2>&1 || true
 pacman-key --populate archlinux >/dev/null 2>&1 || true
-pacman -Sy --noconfirm >/dev/null
-pacman -S --noconfirm --needed archiso mkinitcpio-archiso git curl wget python \
+# 单事务 -Syu 安装：镜像内置包落后仓库时，-Sy 后单独 -S 会撞 openssl-3 文件冲突（部分升级炸）
+pacman -Syu --noconfirm archiso mkinitcpio-archiso git curl wget python \
   rsync squashfs-tools libisoburn dosfstools mtools e2fsprogs pacman-contrib >/dev/null
 command -v mkarchiso >/dev/null || { echo "::error::mkarchiso 未安装"; exit 1; }
 echo "::endgroup::"
