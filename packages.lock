@@ -96,7 +96,7 @@ gdk-pixbuf2 2.44.8-1
 gettext 1.0-2
 gflags 2.2.2-6
 giflib 6.1.3-2
-git 2.56.0-2
+git 2.56.1-1
 glib-networking 1:2.90.1-1
 glib2 2.90.1-1
 glibc 2.44+r50+g1848099f063e-1
