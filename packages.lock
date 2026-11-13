@@ -393,7 +393,7 @@ nvme-cli 3.2-2
 openbox 3.6.1-14
 opencc 1.4.2-1
 opencode 2.2.7-1
-openssh 10.6p1-3
+openssh 10.6p2-1
 openssl 4.1.0-1
 openssl-3 3.5.9-2
 opus 1.6.1-1
@@ -436,7 +436,7 @@ python-linkify-it-py 2.2.0-1
 python-markdown-it-py 4.2.0-1
 python-mdit_py_plugins 0.7.0-1
 python-mdurl 0.1.2-9
-python-platformdirs 4.14.3-1
+python-platformdirs 4.14.5-1
 python-pycparser 3.12-1
 python-pydantic 2.14.2-1
 python-pydantic-core 3:2.50.2-1
