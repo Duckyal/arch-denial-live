@@ -99,7 +99,7 @@ giflib 6.1.3-2
 git 2.56.1-1
 glib-networking 1:2.90.1-1
 glib2 2.90.1-1
-glibc 2.44+r50+g1848099f063e-1
+glibc 2.44+r78+gfcfb867c58ab-1
 glycin 2.2.6-1
 gmp 6.3.0-3
 gnome-keyring 1:51.1-1
@@ -143,7 +143,7 @@ hwdata 0.412-1
 i2c-tools 4.4-4
 iana-etc 20260617-1
 icu 78.3-1
-imlib2 1.12.7-3
+imlib2 1.13.0-1
 intel-ucode 20261110-1
 iproute2 7.3.0-1
 iptables 1:1.8.13-1
@@ -156,13 +156,13 @@ jfsutils 1.1.15-9
 json-c 0.19-1
 json-glib 1.10.8-1
 kbd 2.10.0-1
-kdbusaddons 6.31.0-1
+kdbusaddons 6.32.0-1
 keyutils 1.6.3-4
-kitemviews 6.31.0-1
+kitemviews 6.32.0-1
 kmod 34.3-2
 krb5 1.22.2-2
-kwidgetsaddons 6.31.0-1
-kwindowsystem 6.31.0-1
+kwidgetsaddons 6.32.0-1
+kwindowsystem 6.32.0-1
 lame 4.0-1
 lcms2 2.20-1
 leancrypto 1.9.1-1
