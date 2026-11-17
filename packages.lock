@@ -221,7 +221,7 @@ libgfortran 16.2.1+r23+gd564253eb6c8-1
 libglvnd 1.7.0-3
 libgomp 16.2.1+r23+gd564253eb6c8-1
 libgpg-error 1.61-1
-libgtop 2.41.3-2
+libgtop 2.41.4-1
 libgudev 238-4
 libhwasan 16.2.1+r23+gd564253eb6c8-1
 libice 1.1.2-1
