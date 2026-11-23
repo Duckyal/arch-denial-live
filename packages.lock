@@ -15,7 +15,7 @@ amd-ucode 20261019-1
 arch-install-scripts 32-1
 archinstall 4.5-1
 archlinux-keyring 20260909-1
-at-spi2-core 2.62.1-1
+at-spi2-core 2.62.2-1
 attr 2.6.0-1
 audit 4.2.1-1
 avahi 1:0.9rc5-2
@@ -275,7 +275,7 @@ librime-data 0.0.0.20251229-1
 librsvg 2:2.63.4-1
 libsamplerate 0.2.2-3
 libsasl 2.1.28-6
-libseccomp 2.6.0-1
+libseccomp 2.6.2-1
 libsecret 0.21.8.2-1
 libsm 1.2.6-1
 libsndfile 1.2.2-4
