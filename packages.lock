@@ -195,7 +195,7 @@ libcdio 2.4.0-1
 libcdio-paranoia 10.2+2.0.2-3
 libcloudproviders 0.4.2-1
 libcolord 1.4.8-2
-libcups 2:2.4.20-1
+libcups 2:2.4.20-2
 libdaemon 0.14-6
 libdatrie 0.2.14-1
 libdecor 0.2.5-1
@@ -457,7 +457,7 @@ rime-luna-pinyin 0.0.0.20250131-1
 rime-prelude 0.0.0.20251229-1
 rime-stroke 0.0.0.20250923-1
 rime-terra-pinyin 0.0.0.20251206-1
-ripgrep 15.2.0-1
+ripgrep 16.0.0-1
 rsync 3.5.2-3
 rtkit 0.14-2
 sbc 2.2-1
